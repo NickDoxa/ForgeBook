@@ -1,0 +1,6 @@
+# src/main/resources/META-INF/gametest.toml
+# Registers ForgeBook GameTests for `./gradlew runGameTestServer`.
+# The `gameTestServer` run config in build.gradle sets
+# `forge.enabledGameTestNamespaces=forgebook` (Pitfall 8) so only these tests run.
+[forgebook]
+class = "com.forgebook.gametest.ChatEchoGameTest"
