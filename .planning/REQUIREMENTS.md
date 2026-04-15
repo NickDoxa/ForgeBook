@@ -147,26 +147,81 @@ Explicitly excluded. Documented to prevent scope creep.
 
 ## Traceability
 
-Populated during roadmap creation — each requirement maps to exactly one phase.
+Each v1 requirement maps to exactly one phase. See ROADMAP.md for phase goals and success criteria.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SCAF-01…08 | Phase 1 | Pending |
-| CFG-01…07 | Phase 1 | Pending |
-| NET-01…06 | Phase 1 | Pending |
-| AI-01…08 | Phase 2 | Pending |
-| TOOL-01…07 | Phase 2 | Pending |
-| CF-01…03 | Phase 2 | Pending |
-| CMD-01…07 | Phase 3 | Pending |
-| UI-01…08 | Phase 4 | Pending |
-| SAFE-01…06 | Phase 4 | Pending |
-| REL-01…05 | Phase 5 | Pending |
+| SCAF-01 | Phase 1 | Pending |
+| SCAF-02 | Phase 1 | Pending |
+| SCAF-03 | Phase 1 | Pending |
+| SCAF-04 | Phase 1 | Pending |
+| SCAF-05 | Phase 1 | Pending |
+| SCAF-06 | Phase 1 | Pending |
+| SCAF-07 | Phase 1 | Pending |
+| SCAF-08 | Phase 1 | Pending |
+| CFG-01 | Phase 1 | Pending |
+| CFG-02 | Phase 1 | Pending |
+| CFG-03 | Phase 1 | Pending |
+| CFG-04 | Phase 1 | Pending |
+| CFG-05 | Phase 1 | Pending |
+| CFG-06 | Phase 1 | Pending |
+| CFG-07 | Phase 1 | Pending |
+| NET-01 | Phase 1 | Pending |
+| NET-02 | Phase 1 | Pending |
+| NET-03 | Phase 1 | Pending |
+| NET-04 | Phase 1 | Pending |
+| NET-05 | Phase 1 | Pending |
+| NET-06 | Phase 1 | Pending |
+| AI-01 | Phase 2 | Pending |
+| AI-02 | Phase 2 | Pending |
+| AI-03 | Phase 2 | Pending |
+| AI-04 | Phase 2 | Pending |
+| AI-05 | Phase 2 | Pending |
+| AI-06 | Phase 2 | Pending |
+| AI-07 | Phase 2 | Pending |
+| AI-08 | Phase 2 | Pending |
+| TOOL-01 | Phase 2 | Pending |
+| TOOL-02 | Phase 2 | Pending |
+| TOOL-03 | Phase 2 | Pending |
+| TOOL-04 | Phase 2 | Pending |
+| TOOL-05 | Phase 2 | Pending |
+| TOOL-06 | Phase 2 | Pending |
+| TOOL-07 | Phase 2 | Pending |
+| CF-01 | Phase 2 | Pending |
+| CF-02 | Phase 2 | Pending |
+| CF-03 | Phase 2 | Pending |
+| CMD-01 | Phase 3 | Pending |
+| CMD-02 | Phase 3 | Pending |
+| CMD-03 | Phase 3 | Pending |
+| CMD-04 | Phase 3 | Pending |
+| CMD-05 | Phase 3 | Pending |
+| CMD-06 | Phase 3 | Pending |
+| CMD-07 | Phase 3 | Pending |
+| SAFE-01 | Phase 3 | Pending |
+| SAFE-02 | Phase 3 | Pending |
+| SAFE-03 | Phase 3 | Pending |
+| SAFE-04 | Phase 3 | Pending |
+| SAFE-05 | Phase 3 | Pending |
+| SAFE-06 | Phase 3 | Pending |
+| UI-01 | Phase 4 | Pending |
+| UI-02 | Phase 4 | Pending |
+| UI-03 | Phase 4 | Pending |
+| UI-04 | Phase 4 | Pending |
+| UI-05 | Phase 4 | Pending |
+| UI-06 | Phase 4 | Pending |
+| UI-07 | Phase 4 | Pending |
+| UI-08 | Phase 4 | Pending |
+| REL-01 | Phase 5 | Pending |
+| REL-02 | Phase 5 | Pending |
+| REL-03 | Phase 5 | Pending |
+| REL-04 | Phase 5 | Pending |
+| REL-05 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 59 total
 - Mapped to phases: 59
-- Unmapped: 0 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-14*
-*Last updated: 2026-04-14 after initial definition*
+*Last updated: 2026-04-14 after roadmap creation*
