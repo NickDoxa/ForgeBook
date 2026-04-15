@@ -24,7 +24,12 @@
   2. `forgebook-server.toml` materializes every SERVER-tier field (including `ai_api_key`, `curseforge_api_key`, `op_only`, `rate_limit_per_minute`); any log line that touches an API key renders `<redacted>`, and `/forgebook reload` atomically swaps the `ConfigSnapshot` without a restart.
   3. A `ChatRequestPacket` sent from the client is received by the server on `SimpleChannel "forgebook:main"`, bounced back as a `ChatResponsePacket`, and rendered on the client — with the server-side handler provably hopping HTTP work off the main thread via the dedicated `aiExecutor` before any `enqueueWork` game-state touch.
   4. `SafeHttpFetcher` rejects, with observable error codes, any URL that is http-only, resolves to a private/loopback/link-local IP, exceeds 3 redirect hops, returns >1 MB, violates the content-type allowlist, or exceeds the 15s timeout — proven by unit tests covering every rule.
-**Plans**: TBD
+**Plans**: 5 plans
+  - [ ] 01-01-PLAN.md — Scaffold & build: MDK extraction, Gradle/FG6/Parchment, jsoup relocation via jarJar, @Mod entry, manifest/license, runClient/runServer checkpoint
+  - [ ] 01-02-PLAN.md — Config & secrets: dual ForgeConfigSpec (SERVER + CLIENT), ApiKey + ConfigSnapshot + ConfigHolder, Log4j2 ApiKeyScrubFilter, /forgebook reload Brigadier command
+  - [ ] 01-03-PLAN.md — Networking: AiExecutor lifecycle, three packets + ChunkedPayload, ForgebookNetwork SimpleChannel registration, ChatRequestHandler echo
+  - [ ] 01-04-PLAN.md — Safe egress: UnsafeUrlException + Cidr + SafeHttpFetcher with SNI workaround, one unit test per Reason value
+  - [ ] 01-05-PLAN.md — CI & testing: GitHub Actions workflow (firewall lint + build + runGameTestServer + leak scrape), ChatEchoGameTest, local+GHA human-verify
 **UI hint**: no
 
 ### Phase 2: AI Engine & Grounding
@@ -83,7 +88,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundations & Safe Egress | 0/? | Not started | - |
+| 1. Foundations & Safe Egress | 0/5 | Not started | - |
 | 2. AI Engine & Grounding | 0/? | Not started | - |
 | 3. Command Surface & Safety Controls | 0/? | Not started | - |
 | 4. In-Inventory Chat UI | 0/? | Not started | - |
