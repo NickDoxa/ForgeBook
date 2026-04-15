@@ -26,9 +26,9 @@
   4. `SafeHttpFetcher` rejects, with observable error codes, any URL that is http-only, resolves to a private/loopback/link-local IP, exceeds 3 redirect hops, returns >1 MB, violates the content-type allowlist, or exceeds the 15s timeout — proven by unit tests covering every rule.
 **Plans**: 5 plans
   - [x] 01-01-PLAN.md — Scaffold & build: MDK extraction, Gradle/FG6/Parchment, jsoup relocation via jarJar, @Mod entry, manifest/license, runClient/runServer checkpoint
-  - [ ] 01-02-PLAN.md — Config & secrets: dual ForgeConfigSpec (SERVER + CLIENT), ApiKey + ConfigSnapshot + ConfigHolder, Log4j2 ApiKeyScrubFilter, /forgebook reload Brigadier command
-  - [ ] 01-03-PLAN.md — Networking: AiExecutor lifecycle, three packets + ChunkedPayload, ForgebookNetwork SimpleChannel registration, ChatRequestHandler echo
-  - [ ] 01-04-PLAN.md — Safe egress: UnsafeUrlException + Cidr + SafeHttpFetcher with SNI workaround, one unit test per Reason value
+  - [x] 01-02-PLAN.md — Config & secrets: dual ForgeConfigSpec (SERVER + CLIENT), ApiKey + ConfigSnapshot + ConfigHolder, Log4j2 ApiKeyScrubFilter, /forgebook reload Brigadier command
+  - [x] 01-03-PLAN.md — Networking: AiExecutor lifecycle, three packets + ChunkedPayload, ForgebookNetwork SimpleChannel registration, ChatRequestHandler echo
+  - [x] 01-04-PLAN.md — Safe egress: UnsafeUrlException + Cidr + SafeHttpFetcher with SNI workaround, one unit test per Reason value
   - [ ] 01-05-PLAN.md — CI & testing: GitHub Actions workflow (firewall lint + build + runGameTestServer + leak scrape), ChatEchoGameTest, local+GHA human-verify
 **UI hint**: no
 
