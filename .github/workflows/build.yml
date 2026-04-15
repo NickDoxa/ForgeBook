@@ -1,0 +1,85 @@
+# .github/workflows/build.yml
+# Plan 01-05: CI tripwires + build + GameTest + classloader-leak smoke check.
+# Every downstream phase could (a) leak client classes onto the dedicated
+# server, (b) log an API key, or (c) break the packet echo. This workflow is
+# the sub-30s regression net: greps catch (a) + (b); the GameTest catches (c).
+name: build
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache Gradle + ForgeGradle caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/caches/forge_gradle
+          key: ${{ runner.os }}-gradle-fg6-${{ hashFiles('**/*.gradle*', 'gradle.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-fg6-
+
+      - name: Firewall lint - no net.minecraft.client.* outside com.forgebook.client
+        shell: bash
+        run: |
+          HITS=$(grep -rn --include='*.java' 'import net\.minecraft\.client\.' src/main/java/ \
+            | grep -v '^src/main/java/com/forgebook/client/' || true)
+          if [ -n "$HITS" ]; then
+            echo "CLIENT-class import outside com.forgebook.client/:"
+            echo "$HITS"
+            exit 1
+          fi
+
+      - name: ApiKey.raw() caller lint
+        shell: bash
+        run: |
+          # Match actual call-sites of .raw() ONLY — tokens preceded by an
+          # identifier or closing bracket, with optional whitespace. Excludes
+          # Javadoc / line comments (lines whose first non-blank char is * or
+          # //) and ApiKey.java itself (which legitimately documents + defines
+          # the method name). Allowed callers: com.forgebook.{ai,integration}.
+          ALLOWED='^src/main/java/com/forgebook/(ai|integration)/'
+          HITS=$(grep -rnE --include='*.java' '[A-Za-z0-9_)\]]\s*\.raw\s*\(\s*\)' src/main/java/ \
+            | grep -vE "$ALLOWED" \
+            | grep -vE ':\s*\*' \
+            | grep -vE ':\s*//' \
+            | grep -v '/ApiKey.java:' || true)
+          if [ -n "$HITS" ]; then
+            echo "ApiKey.raw() called from unauthorised package:"
+            echo "$HITS"
+            exit 1
+          fi
+
+      - name: Build
+        run: ./gradlew --no-daemon build
+
+      - name: GameTest
+        run: ./gradlew --no-daemon runGameTestServer
+
+      - name: Classloader-leak smoke check
+        shell: bash
+        run: |
+          LOG=run/gametest/logs/latest.log
+          if [ ! -f "$LOG" ]; then
+            echo "missing $LOG after runGameTestServer"
+            exit 1
+          fi
+          if grep -q 'NoClassDefFoundError.*net/minecraft/client' "$LOG"; then
+            echo "CLIENT-class leak detected on dedicated server:"
+            grep -n 'NoClassDefFoundError' "$LOG"
+            exit 1
+          fi
+          echo "No client-class NCDFE detected."
