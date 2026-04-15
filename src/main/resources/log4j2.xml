@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  CFG-05 / D-16: global log-scrubber for API-key-shaped substrings.
+  packages="com.forgebook.util.log" forces runtime plugin scanning (Pitfall 5, RESEARCH L608).
+  This file augments — not replaces — Forge's default log4j2 configuration.
+  Forge's server launcher supplies the ServerGuiConsole/SysOut/File appenders; we wrap them.
+-->
+<Configuration status="WARN" packages="com.forgebook.util.log">
+    <Appenders>
+        <!-- Wrap Forge's default console+file appenders with our scrubber.
+             Forge's default config file on the dedicated server classpath is
+             net.minecraftforge:forge:*-server.log4j2.xml with appenders named
+             ServerGuiConsole, SysOut, File. We reference them by name. -->
+        <Rewrite name="ScrubbedConsole">
+            <AppenderRef ref="ServerGuiConsole"/>
+            <ApiKeyScrub/>
+        </Rewrite>
+        <Rewrite name="ScrubbedSysOut">
+            <AppenderRef ref="SysOut"/>
+            <ApiKeyScrub/>
+        </Rewrite>
+        <Rewrite name="ScrubbedFile">
+            <AppenderRef ref="File"/>
+            <ApiKeyScrub/>
+        </Rewrite>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="ScrubbedConsole"/>
+            <AppenderRef ref="ScrubbedSysOut"/>
+            <AppenderRef ref="ScrubbedFile"/>
+        </Root>
+    </Loggers>
+</Configuration>
