@@ -49,10 +49,18 @@ public class ForgeBookMod {
         modBus.addListener(this::commonSetup);
 
         // Forge-bus (game lifecycle) wiring.
-        // Plan 02 adds: MinecraftForge.EVENT_BUS.addListener(ForgebookReloadCommand::onRegister);
         // Plan 03 adds: MinecraftForge.EVENT_BUS.addListener(AiExecutor::onServerStopping);
         //               MinecraftForge.EVENT_BUS.addListener(AiExecutor::onServerStarting);
         MinecraftForge.EVENT_BUS.register(this);
+
+        // Plan 02 wiring: /forgebook reload command + initial snapshot seed on server start.
+        // D-15: /forgebook reload is the ONLY reload trigger; ModConfigEvent.Reloading is intentionally NOT wired.
+        // ServerStartingEvent seeds ConfigHolder so downstream readers can assume non-null after server start.
+        MinecraftForge.EVENT_BUS.addListener(com.forgebook.command.ForgebookReloadCommand::onRegister);
+        MinecraftForge.EVENT_BUS.addListener(
+            (net.minecraftforge.event.server.ServerStartingEvent e) ->
+                com.forgebook.config.ConfigHolder.set(
+                    com.forgebook.config.ConfigHolder.buildFromSpec()));
 
         // D-10, SCAF-02, SCAF-04: the ONLY entry into client-dist code.
         DistExecutor.safeRunWhenOn(Dist.CLIENT,
