@@ -25,7 +25,7 @@
   3. A `ChatRequestPacket` sent from the client is received by the server on `SimpleChannel "forgebook:main"`, bounced back as a `ChatResponsePacket`, and rendered on the client — with the server-side handler provably hopping HTTP work off the main thread via the dedicated `aiExecutor` before any `enqueueWork` game-state touch.
   4. `SafeHttpFetcher` rejects, with observable error codes, any URL that is http-only, resolves to a private/loopback/link-local IP, exceeds 3 redirect hops, returns >1 MB, violates the content-type allowlist, or exceeds the 15s timeout — proven by unit tests covering every rule.
 **Plans**: 5 plans
-  - [ ] 01-01-PLAN.md — Scaffold & build: MDK extraction, Gradle/FG6/Parchment, jsoup relocation via jarJar, @Mod entry, manifest/license, runClient/runServer checkpoint
+  - [x] 01-01-PLAN.md — Scaffold & build: MDK extraction, Gradle/FG6/Parchment, jsoup relocation via jarJar, @Mod entry, manifest/license, runClient/runServer checkpoint
   - [ ] 01-02-PLAN.md — Config & secrets: dual ForgeConfigSpec (SERVER + CLIENT), ApiKey + ConfigSnapshot + ConfigHolder, Log4j2 ApiKeyScrubFilter, /forgebook reload Brigadier command
   - [ ] 01-03-PLAN.md — Networking: AiExecutor lifecycle, three packets + ChunkedPayload, ForgebookNetwork SimpleChannel registration, ChatRequestHandler echo
   - [ ] 01-04-PLAN.md — Safe egress: UnsafeUrlException + Cidr + SafeHttpFetcher with SNI workaround, one unit test per Reason value
