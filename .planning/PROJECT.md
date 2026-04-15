@@ -52,7 +52,7 @@ A player holding an unfamiliar item from an unfamiliar mod gets a grounded, trus
 - **Build:** Gradle with ForgeGradle 6.x
 - **Target audience:** Modpack players (especially large kitchen-sink packs) who routinely encounter unfamiliar items and want lower friction than alt-tabbing to wikis
 - **AI landscape:** Provider-agnostic abstraction matters — API pricing and model availability shift quarterly; Anthropic Claude chosen as the v1 default for strong tool-use behavior at Haiku price point
-- **Mod metadata:** Forge's `ModList` / `IModInfo` exposes `getDisplayURL()` which many mods populate with wiki or CurseForge links — primary grounding source
+- **Mod metadata:** Forge's `ModList` / `IModInfo` exposes `getModURL()` (backed by the `displayURL = "..."` field in each mod's `mods.toml`), which many mods populate with wiki or CurseForge links — primary grounding source. Roughly ~30% of mods leave this empty, hence the web-search fallback
 - **CurseForge API:** Public REST API; modpack ID → pack metadata + mod list. Optional because self-hosted/handcrafted servers don't always map to a CF pack
 - **Security:** AI API keys live in the server-side config only. Client never sees the key; client sends chat requests to server via a dedicated packet channel; server forwards to AI provider
 - **Logo:** User is designing a logo separately — placement location will be flagged during scaffold phase (expected: `src/main/resources/assets/forgebook/textures/gui/logo.png` and `src/main/resources/logo.png` for the mods.toml `logoFile`)
