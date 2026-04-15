@@ -13,13 +13,21 @@ out
 *.iml
 .idea
 
-# gradle
-build
-.gradle
+# gradle (directory forms for explicit anchoring per plan)
+build/
+.gradle/
+run/
 
 # other
 eclipse
-run
 
 # Files from Forge MDK
 forge*changelog.txt
+
+# Backup TOMLs
+*.toml.bak
+
+# Disallow stray forgebook-server.toml at repo root or run/ (secrets hygiene, CFG-06)
+forgebook-server.toml
+# But allow fixture/example TOMLs under config/ (Phase-1 reserved fixtures dir)
+!config/forgebook-server.toml
