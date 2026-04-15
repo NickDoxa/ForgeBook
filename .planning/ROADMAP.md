@@ -29,7 +29,7 @@
   - [x] 01-02-PLAN.md — Config & secrets: dual ForgeConfigSpec (SERVER + CLIENT), ApiKey + ConfigSnapshot + ConfigHolder, Log4j2 ApiKeyScrubFilter, /forgebook reload Brigadier command
   - [x] 01-03-PLAN.md — Networking: AiExecutor lifecycle, three packets + ChunkedPayload, ForgebookNetwork SimpleChannel registration, ChatRequestHandler echo
   - [x] 01-04-PLAN.md — Safe egress: UnsafeUrlException + Cidr + SafeHttpFetcher with SNI workaround, one unit test per Reason value
-  - [ ] 01-05-PLAN.md — CI & testing: GitHub Actions workflow (firewall lint + build + runGameTestServer + leak scrape), ChatEchoGameTest, local+GHA human-verify
+  - [x] 01-05-PLAN.md — CI & testing: GitHub Actions workflow (firewall lint + build + runGameTestServer + leak scrape), ChatEchoGameTest, local+GHA human-verify
 **UI hint**: no
 
 ### Phase 2: AI Engine & Grounding
