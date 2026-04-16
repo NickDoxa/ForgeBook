@@ -37,19 +37,18 @@ import org.apache.logging.log4j.Logger;
  * The public {@link #handle(ChatRequestPacket, Supplier)} entry point cannot be
  * driven synchronously from a GameTest because {@code NetworkEvent.Context} in
  * Forge 47.x does not expose a public constructor — we cannot mint a stub
- * context from a test. Instead, the package-private
- * {@link #handleForTest(ChatRequestPacket, ServerPlayer, Runnable, Consumer)}
- * overload lets the GameTest inject a synchronous enqueuer (Runnable::run) and
- * a response sink that captures the outbound packet in lieu of calling
- * {@link ForgebookNetwork#CHANNEL}.send(...). Production code paths are
- * untouched.
+ * context from a test. Instead, the {@link #handleForTest} overload lets the
+ * GameTest (in {@code com.forgebook.gametest}) inject a synchronous enqueuer
+ * ({@code Runnable::run}) and a response sink that captures the outbound
+ * packet in lieu of calling {@link ForgebookNetwork#CHANNEL}.send(...).
+ * Production code paths are untouched.
  */
 public final class ChatRequestHandler {
 
     private static final Logger LOG = LogManager.getLogger();
 
     /**
-     * Package-private test sink. When non-null, the handler's final send step
+     * Test sink. When non-null, the handler's final send step
      * calls this instead of {@link ForgebookNetwork#CHANNEL}.send(...). Used by
      * {@code ChatEchoGameTest} (Plan 01-05) to observe response/error packets
      * without binding to a real network connection. Volatile so production
@@ -57,7 +56,7 @@ public final class ChatRequestHandler {
      * it. MUST be reset to null in test teardown.
      */
     /* @VisibleForTesting — null in production; tests set and must reset in teardown. */
-    static volatile Consumer<Object> responseSinkForTests = null;
+    public static volatile Consumer<Object> responseSinkForTests = null;
 
     private ChatRequestHandler() {}
 
@@ -90,7 +89,7 @@ public final class ChatRequestHandler {
      * dependency on ForgebookNetwork.CHANNEL). Callers MUST NOT bypass this
      * overload in production.
      */
-    static void handleForTest(
+    public static void handleForTest(
             ChatRequestPacket pkt,
             ServerPlayer sender,
             java.util.function.Consumer<Runnable> enqueueWork,
