@@ -23,6 +23,13 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
+ * NOTE (Phase 3): {@code AiDispatcher.dispatch} now takes a {@link DispatchContext}.
+ * These tests pass {@code null} for the ServerPlayer — the dispatcher tolerates null
+ * sender (logs are skipped for null senders, which is how tests exercise the
+ * non-audit paths without mocking MC classes per CLAUDE.md).
+ */
+
+/**
  * Tests for AiDispatcher: sealed Result type, INSTANCE singleton,
  * dispatch entry point, ProviderError → ErrorCode mapping, and ProviderFactory.
  */
@@ -104,7 +111,7 @@ class AiDispatcherTest {
         Queue<AiTurn> queue = new LinkedList<>();
         queue.add(new AiTurn.FinalReply("hi", false));
         AiDispatcher d = AiDispatcher.dispatcherForTests(new ScriptedAiProvider(queue));
-        AiDispatcher.Result result = d.dispatch("hello", null);
+        AiDispatcher.Result result = d.dispatch(new DispatchContext("hello", null, RequestKind.CHAT_UI));
         assertInstanceOf(AiDispatcher.Reply.class, result);
         assertEquals("hi", ((AiDispatcher.Reply) result).text());
         assertFalse(((AiDispatcher.Reply) result).truncated());
@@ -116,7 +123,7 @@ class AiDispatcherTest {
         Queue<AiTurn> queue = new LinkedList<>();
         queue.add(new AiTurn.FinalReply("long text...", true));
         AiDispatcher d = AiDispatcher.dispatcherForTests(new ScriptedAiProvider(queue));
-        AiDispatcher.Result result = d.dispatch("q", null);
+        AiDispatcher.Result result = d.dispatch(new DispatchContext("q", null, RequestKind.CHAT_UI));
         assertInstanceOf(AiDispatcher.Reply.class, result);
         assertTrue(((AiDispatcher.Reply) result).truncated());
     }
@@ -146,7 +153,7 @@ class AiDispatcherTest {
         queue.add(new AiTurn.FinalReply("ok", false));
         ScriptedAiProvider provider = new ScriptedAiProvider(queue);
         AiDispatcher d = AiDispatcher.dispatcherForTests(provider);
-        d.dispatch("hello", null);
+        d.dispatch(new DispatchContext("hello", null, RequestKind.CHAT_UI));
         // Verify the ChatRequest the provider received used the sentinel model
         assertEquals("sentinel-model-id", provider.lastRequest().model());
     }
@@ -159,7 +166,7 @@ class AiDispatcherTest {
         queue.add(new AiTurn.FinalReply("ok", false));
         ScriptedAiProvider provider = new ScriptedAiProvider(queue);
         AiDispatcher d = AiDispatcher.dispatcherForTests(provider);
-        d.dispatch("question", null);
+        d.dispatch(new DispatchContext("question", null, RequestKind.CHAT_UI));
         assertTrue(provider.lastRequest().system().contains("UNIQUE_SENTINEL_PROMPT_12345"),
             "system prompt must come from SystemPromptCache");
     }
@@ -186,7 +193,7 @@ class AiDispatcherTest {
         queue.add(new AiTurn.FinalReply("ok", false));
         ScriptedAiProvider provider = new ScriptedAiProvider(queue);
         AiDispatcher d = AiDispatcher.dispatcherForTests(provider);
-        d.dispatch("q", null);
+        d.dispatch(new DispatchContext("q", null, RequestKind.CHAT_UI));
         assertEquals("claude-haiku-4-5-20251001", provider.lastRequest().model());
         assertEquals(2048, provider.lastRequest().maxTokens());
     }
@@ -203,7 +210,7 @@ class AiDispatcherTest {
         queue.add(new AiTurn.FinalReply("ok", false));
         ScriptedAiProvider provider = new ScriptedAiProvider(queue);
         AiDispatcher d = AiDispatcher.dispatcherForTests(provider);
-        d.dispatch("q", null);
+        d.dispatch(new DispatchContext("q", null, RequestKind.CHAT_UI));
         assertEquals(2, provider.lastRequest().tools().size(),
             "captured ChatRequest must contain tools from ToolRegistry");
     }
@@ -371,7 +378,7 @@ class AiDispatcherTest {
         ScriptedAiProvider provider = new ScriptedAiProvider(queue);
         AiDispatcher d = AiDispatcher.dispatcherForTests(provider);
         // Must not throw
-        AiDispatcher.Result result = d.dispatch("q", null);
+        AiDispatcher.Result result = d.dispatch(new DispatchContext("q", null, RequestKind.CHAT_UI));
         assertInstanceOf(AiDispatcher.Reply.class, result);
         // System prompt should be the fallback (non-empty)
         assertFalse(provider.lastRequest().system().isEmpty(),
@@ -386,7 +393,7 @@ class AiDispatcherTest {
             Queue<AiTurn> queue = new LinkedList<>();
             queue.add(new AiTurn.FinalReply("ok", false));
             AiDispatcher d = AiDispatcher.dispatcherForTests(new ScriptedAiProvider(queue));
-            AiDispatcher.Result result = d.dispatch("q", null);
+            AiDispatcher.Result result = d.dispatch(new DispatchContext("q", null, RequestKind.CHAT_UI));
             assertInstanceOf(AiDispatcher.Error.class, result);
             assertEquals(ErrorCode.PROVIDER, ((AiDispatcher.Error) result).code());
         } finally {

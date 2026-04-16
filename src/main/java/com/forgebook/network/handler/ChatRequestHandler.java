@@ -103,7 +103,9 @@ public final class ChatRequestHandler {
                 // this task — AiDispatcher does NOT submit to AiExecutor itself.
                 try {
                     com.forgebook.ai.AiDispatcher.Result result =
-                        com.forgebook.ai.AiDispatcher.INSTANCE.dispatch(pkt.message(), sender);
+                        com.forgebook.ai.AiDispatcher.INSTANCE.dispatch(
+                            new com.forgebook.ai.DispatchContext(
+                                pkt.message(), sender, com.forgebook.ai.RequestKind.CHAT_UI));
 
                     // D-19: enqueueWork ONLY for the final game-state mutation (the send).
                     enqueueWork.accept(() -> {

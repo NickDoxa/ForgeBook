@@ -160,11 +160,11 @@ public final class ClaudeProvider implements AiProvider {
             case "end_turn":
             case "stop_sequence": {
                 String text = extractText(r);
-                return new AiTurn.FinalReply(text, false);
+                return new AiTurn.FinalReply(text, false, Optional.ofNullable(r.usage));
             }
             case "max_tokens": {
                 String text = extractText(r);
-                return new AiTurn.FinalReply(text, true);
+                return new AiTurn.FinalReply(text, true, Optional.ofNullable(r.usage));
             }
             case "tool_use": {
                 List<AiTurn.ToolUseBlock> uses = new ArrayList<>();

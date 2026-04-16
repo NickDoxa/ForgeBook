@@ -20,7 +20,13 @@ public sealed interface AiTurn
         permits AiTurn.FinalReply, AiTurn.ToolUses, AiTurn.ProviderError {
 
     /** Terminal text reply. truncated=true when Anthropic stop_reason == "max_tokens". */
-    record FinalReply(String text, boolean truncated) implements AiTurn {}
+    record FinalReply(String text, boolean truncated,
+                       java.util.Optional<com.forgebook.ai.dto.Usage> usage) implements AiTurn {
+        /** Backward-compat ctor: preserves every existing {@code new FinalReply(text, truncated)} call site. */
+        public FinalReply(String text, boolean truncated) {
+            this(text, truncated, java.util.Optional.empty());
+        }
+    }
 
     /** Model requested one or more tools; execute in parallel per D-11. */
     record ToolUses(List<ToolUseBlock> uses) implements AiTurn {}
