@@ -7,8 +7,9 @@ modId="forgebook"
 version="${file.jarVersion}"
 displayName="ForgeBook"
 displayURL="https://github.com/Nick-Doxa/ForgeBook"
+issueTrackerURL="https://github.com/Nick-Doxa/ForgeBook/issues"
 logoFile="logo.png"
-credits=""
+credits="jsoup by Jonathan Hedley (MIT) — bundled as com.forgebook.shadow.jsoup"
 authors="Nick Doxa"
 description='''
 ForgeBook puts an AI helper inside your inventory so you can ask questions about the mods
