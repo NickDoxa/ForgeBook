@@ -52,14 +52,22 @@ public class ForgeBookMod {
         // Forge-bus (game lifecycle) wiring.
         MinecraftForge.EVENT_BUS.register(this);
 
-        // Plan 02 wiring: /forgebook reload command + initial snapshot seed on server start.
-        // D-15: /forgebook reload is the ONLY reload trigger; ModConfigEvent.Reloading is intentionally NOT wired.
-        // ServerStartingEvent seeds ConfigHolder so downstream readers can assume non-null after server start.
-        MinecraftForge.EVENT_BUS.addListener(com.forgebook.command.ForgebookReloadCommand::onRegister);
+        // Plan 03 (Phase 3) wiring: full /forgebook command tree (ask/item/reload/disable/enable/stats) +
+        // initial snapshots on server start. D-15: /forgebook reload remains the only config reload trigger.
+        // ServerStartingEvent seeds ConfigHolder + RateLimiterHolder so downstream readers can
+        // assume non-null after server start.
+        MinecraftForge.EVENT_BUS.addListener(com.forgebook.command.ForgebookCommands::onRegister);
         MinecraftForge.EVENT_BUS.addListener(
-            (net.minecraftforge.event.server.ServerStartingEvent e) ->
+            (net.minecraftforge.event.server.ServerStartingEvent e) -> {
                 com.forgebook.config.ConfigHolder.set(
-                    com.forgebook.config.ConfigHolder.buildFromSpec()));
+                    com.forgebook.config.ConfigHolder.buildFromSpec());
+                // Phase 3 Plan 01/06a: seed RateLimiterHolder with the initial snapshot's
+                // rate_limit_per_minute. /forgebook reload (Plan 06a Task 1) swaps this
+                // on subsequent reloads via the same pattern.
+                com.forgebook.safety.RateLimiterHolder.swap(
+                    new com.forgebook.safety.RateLimiter(
+                        com.forgebook.config.ConfigHolder.get().rateLimitPerMinute()));
+            });
 
         // Plan 03 wiring: aiExecutor lifecycle (D-20). Separate ServerStartingEvent
         // listener from the ConfigHolder seeder above — distinct concerns; Forge
