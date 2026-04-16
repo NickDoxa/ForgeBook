@@ -12,23 +12,22 @@ A player holding an unfamiliar item from an unfamiliar mod gets a grounded, trus
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Forge 1.20.1 / Forge 47.4.18 mod skeleton with common/client distribution, mod ID `forgebook`, Java 17 — Phase 1
+- ✓ Forge config file exposing `enable_chat_interface`, `ai_provider`, `ai_api_key`, `ai_model`, `curseforge_modpack_id`, `curseforge_api_key`, `op_only`, `rate_limit_per_minute`, `enable_web_search` (plus `max_tokens`, `web_search_provider`, `web_search_api_key` added in Phase 2) — Phase 1 / extended Phase 2
+- ✓ Pluggable AI provider abstraction; Anthropic Claude adapter ships (hand-rolled `HttpClient` + Gson, `anthropic-version=2023-06-01`); OpenAI + Ollama adapters stubbed as `NOT_IMPLEMENTED` — Phase 2
+- ✓ Tool-using agent backs chat flow: `list_installed_mods`, `fetch_mod_docs_page(modid)`, `web_search(query)`, `get_modpack_context()` — Phase 2 (tool registry, `AgentLoop` 6-iter cap, `<mod_doc trust="untrusted">` framing)
+- ✓ Missing-docs fallback: empty `getModURL()` → `FetchModDocsPageTool` `NO_DOCS_URL` → `WebSearchTool` (DuckDuckGo default, Brave adapter) → cited answer — Phase 2 (SC-5 proven end-to-end via `AgentLoopE2ETest`)
+- ✓ CurseForge integration: `curseforge_modpack_id` → `CurseForgeClient.fetch` at `ServerStartedEvent`, 500-char summary cap, graceful degradation when unconfigured — Phase 2
+- ✓ Client + server both require the mod installed — Phase 1
+- ✓ Networking: `SimpleChannel` `forgebook:main` carrying `ChatRequestPacket` / `ChatResponsePacket` / `ChatErrorPacket`; API key never leaves the server (`AiDispatcher.INSTANCE` server-side only) — Phase 1 / wired to AI in Phase 2
 
 ### Active
 
-- [ ] Forge 1.20.1 / Forge 47.4.18 mod skeleton with common/client distribution, mod ID `forgebook`, Java 17
-- [ ] Forge config file (`config/forgebook-common.toml` and/or `-server.toml`) exposing: `enable_chat_interface` (bool), `ai_provider` (enum), `ai_api_key` (string), `ai_model` (string), `curseforge_modpack_id` (string, optional), `curseforge_api_key` (string, optional), `op_only` (bool, default true), `rate_limit_per_minute` (int), `enable_web_search` (bool)
-- [ ] Pluggable AI provider abstraction; Anthropic Claude adapter ships in v1; OpenAI + Ollama adapters stubbed for extension
 - [ ] Chat UI rendered adjacent to (left of) the inventory screen, toggled via a button rendered inside the inventory screen (no default keybind)
 - [ ] Chat UI uses vanilla Minecraft GUI assets or public-domain/permissively-licensed assets only — no custom-designed textures required for v1 apart from the user-supplied logo
-- [ ] Tool-using agent backs the chat UI: tools include `list_installed_mods`, `fetch_mod_docs_page(modid)`, `web_search(query)`, and — if modpack configured — `get_modpack_context()`
 - [ ] `/forgebook item` command: no args targets the main-hand item; optional `<modid:item_id>` arg targets any registered item. Uses RAG-style single-shot: fetch the item's source mod's `displayURL`/docs URL, pass relevant sections to the model, return answer
-- [ ] Missing-docs fallback: when a source mod exposes no website/wiki URL, the agent performs a web search for `<mod name> <item> wiki` and summarizes findings
 - [ ] OP-only gate by default (`op_only = true`); when disabled, a per-player rate limit (`rate_limit_per_minute`) applies
 - [ ] Chat context is per-session only — cleared on UI close or disconnect; no on-disk conversation persistence
-- [ ] CurseForge integration (when `curseforge_modpack_id` is set): fetches modpack name + description at startup and injects into system prompt; enables modpack-aware answers and cross-mod synergy hints
-- [ ] Client + server both require the mod installed; server rejects clients without it (reduces optional-networking complexity for v1)
-- [ ] Networking: custom channel carrying chat request/response packets between client UI and server-hosted AI dispatcher (API key never leaves the server)
 - [ ] Open source license (default: MIT unless the user opts for LGPL-3.0 later)
 
 ### Out of Scope
@@ -71,18 +70,20 @@ A player holding an unfamiliar item from an unfamiliar mod gets a grounded, trus
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Anthropic Claude as default AI provider (pluggable) | Strong tool-use, competitive Haiku pricing; abstraction keeps OpenAI/Ollama viable | — Pending |
-| Hybrid agent strategy: tool-using for chat UI, RAG single-shot for `/forgebook item` | Chat is multi-turn and benefits from tools; item lookup is a bounded single question — cheaper as one-shot | — Pending |
-| OP-only by default, configurable off with per-player rate limit | Protects server owner's API budget from abuse; server owners can open up with knobs | — Pending |
-| Chat context per-session only | Lowest storage + privacy footprint; matches "quick question" UX | — Pending |
-| In-inventory button to toggle chat UI (no default keybind) | Avoids conflicts with other mods' keybinds; discoverable inside existing inventory flow | — Pending |
-| `/forgebook` as single top-level command with subcommands (`item`, `ask`, `reload`) | Avoids polluting command namespace; extensible | — Pending |
-| Held item as default target for `/forgebook item` | Minimizes typing for the common case; explicit `<modid:item_id>` arg still supported | — Pending |
-| Client + server both required | Removes optional-networking branching; simpler v1 | — Pending |
-| Missing-docs → web search fallback | Best UX for sparse-metadata mods; user accepts higher cost | — Pending |
-| CurseForge integration optional, enriches prompt when present | Many servers don't run CF packs; must degrade gracefully | — Pending |
-| Mod ID: `forgebook`, package: `com.forgebook` | Matches project name; short, collision-unlikely | — Pending |
-| License: MIT (default) | Permissive; allows modpack inclusion without friction | — Pending |
+| Anthropic Claude as default AI provider (pluggable) | Strong tool-use, competitive Haiku pricing; abstraction keeps OpenAI/Ollama viable | ✓ Shipped — Phase 2 (ClaudeProvider v1/messages, `claude-haiku-4-5` default; OpenAi/Ollama `NOT_IMPLEMENTED`) |
+| Hybrid agent strategy: tool-using for chat UI, RAG single-shot for `/forgebook item` | Chat is multi-turn and benefits from tools; item lookup is a bounded single question — cheaper as one-shot | Tool-using half ✓ Phase 2 (AgentLoop); RAG single-shot pending Phase 3 |
+| OP-only by default, configurable off with per-player rate limit | Protects server owner's API budget from abuse; server owners can open up with knobs | — Pending Phase 3 |
+| Chat context per-session only | Lowest storage + privacy footprint; matches "quick question" UX | — Pending Phase 4 |
+| In-inventory button to toggle chat UI (no default keybind) | Avoids conflicts with other mods' keybinds; discoverable inside existing inventory flow | — Pending Phase 4 |
+| `/forgebook` as single top-level command with subcommands (`item`, `ask`, `reload`) | Avoids polluting command namespace; extensible | `reload` ✓ Phase 2 (ForgebookReloadCommand); `item`/`ask` pending Phase 3 |
+| Held item as default target for `/forgebook item` | Minimizes typing for the common case; explicit `<modid:item_id>` arg still supported | — Pending Phase 3 |
+| Client + server both required | Removes optional-networking branching; simpler v1 | ✓ Shipped — Phase 1 |
+| Missing-docs → web search fallback | Best UX for sparse-metadata mods; user accepts higher cost | ✓ Shipped — Phase 2 (SC-5 E2E) |
+| CurseForge integration optional, enriches prompt when present | Many servers don't run CF packs; must degrade gracefully | ✓ Shipped — Phase 2 (CurseForgeClient + ModpackContextCache + SystemPromptBuilder) |
+| Mod ID: `forgebook`, package: `com.forgebook` | Matches project name; short, collision-unlikely | ✓ Shipped — Phase 1 |
+| License: MIT (default) | Permissive; allows modpack inclusion without friction | — Pending Phase 5 |
+| Prompt-injection framing via `<mod_doc trust="untrusted">...</mod_doc>` with 8000-char cap + visible truncation marker (D-14) | Fetched third-party docs are untrusted input — must be framed so the model treats them as data, not instructions | ✓ Shipped — Phase 2 (PromptFraming) |
+| `AgentLoop` hard 6-iter cap, 5xx retry (3 tries, 30s cap, exp backoff + retry-after), circuit breaker (5-fail / 5-min cooldown) | Cost protection + reliability against transient provider failures | ✓ Shipped — Phase 2 (RetryPolicy + CircuitBreaker) |
 
 ## Evolution
 
@@ -102,4 +103,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 after initialization*
+*Last updated: 2026-04-16 after Phase 2 (AI Engine & Grounding)*

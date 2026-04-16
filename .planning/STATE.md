@@ -14,26 +14,26 @@ progress:
 
 # ForgeBook — Project State
 
-**Last updated:** 2026-04-14
-**Status:** Ready to plan
+**Last updated:** 2026-04-16 after Phase 2 transition
+**Status:** Ready to plan Phase 3
 
 ## Project Reference
 
-**What this is:** A Minecraft Forge 1.20.1 mod that bridges AI with the in-game experience via an in-inventory chat UI (tool-using agent) and a `/forgebook item` command (RAG single-shot) grounded in each mod's documentation URL.
+See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A player holding an unfamiliar item from an unfamiliar mod gets a grounded, trustworthy answer about what it does and how to use it — without alt-tabbing to a wiki.
 
-**Current focus:** Phase 02 — ai-engine-grounding
+**Current focus:** Phase 3 — Command Surface & Safety Controls
 
 ## Current Position
 
-Phase: 02 (ai-engine-grounding) — EXECUTING
-Plan: 1 of 7
+Phase: 3 (command-surface-&-safety-controls) — READY TO PLAN
+Plan: Not started
 
 - **Phase:** 3
 - **Plan:** Not started
-- **Status:** Awaiting `/gsd-plan-phase 1`
-- **Progress:** [░░░░░░░░░░] 0% (0/5 phases complete)
+- **Status:** Awaiting `/gsd-discuss-phase 3` or `/gsd-plan-phase 3`
+- **Progress:** [████░░░░░░] 40% (2/5 phases complete — Phase 1 Foundations, Phase 2 AI Engine)
 
 ## Mode & Configuration
 
@@ -50,10 +50,10 @@ Plan: 1 of 7
 | Metric | Value |
 |--------|-------|
 | Phases planned | 5 |
-| Phases complete | 0 |
+| Phases complete | 2 |
 | Requirements v1 | 59 |
 | Requirements mapped | 59 (100%) |
-| Plans executed | 0 |
+| Plans executed | 12 |
 
 ## Accumulated Context
 
@@ -102,11 +102,14 @@ Plan: 1 of 7
 
 ## Session Continuity
 
-**Last session end:** 2026-04-14 (initialization — PROJECT.md, REQUIREMENTS.md, research, and ROADMAP.md created).
+**Last session end:** 2026-04-16 (Phase 2 re-verified after wiring fix 96b1dc6; 4/5 SC verified in code, SC-1 awaits live Claude call tracked in 02-HUMAN-UAT.md).
 
-**Next action:** Run `/gsd-plan-phase 1` to decompose Phase 1 (Foundations & Safe Egress) into executable plans.
+**Stopped at:** Phase 2 complete, ready to plan Phase 3.
+**Resume file:** None.
 
-**Resume hint:** Phase 1 groups SCAF + CFG + NET because the top-5 CRITICAL pitfalls (client classloader, SERVER-only secrets, off-tick HTTP, SafeHttpFetcher SSRF, classloader leaks) all need foundation-layer solutions. Do not punt any of them into Phase 2.
+**Next action:** Run `/gsd-discuss-phase 3` to gather context before planning Phase 3 (Command Surface & Safety Controls), or jump to `/gsd-plan-phase 3`.
+
+**Resume hint:** Phase 3 is where the AI pipeline (Phase 2) becomes player-reachable. It adds `/forgebook item|ask|reload|disable|enable|stats` with OP gating (`hasPermission(2)`), per-UUID token-bucket rate limit, global kill-switch, and the fixed error taxonomy (`TRANSPORT`/`RATE_LIMITED`/`FORBIDDEN`/`PROVIDER`/`DISABLED`). The RAG single-shot path for `/forgebook item` is distinct from Phase 2's tool-using loop — fetch `getModURL()` → scraper → one Claude call, no agent loop.
 
 ---
-*State initialized: 2026-04-14*
+*State initialized: 2026-04-14; Phase 2 transition: 2026-04-16*
