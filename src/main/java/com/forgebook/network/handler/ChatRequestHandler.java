@@ -18,8 +18,11 @@ import org.apache.logging.log4j.Logger;
 /**
  * NET-03 / NET-06 / D-19: canonical executor-hop + enqueueWork pattern.
  *
- * Phase 1 body: echo. Phase 2 replaces the executor task body with a call to
- * AiDispatcher.dispatch(...).
+ * Phase 2 dispatch: the executor task body calls AiDispatcher.INSTANCE.dispatch(...)
+ * and maps the Result (Reply or Error) to a ChatResponsePacket or ChatErrorPacket.
+ * AiDispatcher runs synchronously inside the submitted task — it does NOT submit
+ * to AiExecutor again (AgentLoop's internal parallel tool calls do touch AiExecutor,
+ * but that is Plan 06's concern, not this handler's).
  *
  * D-19 invariant:
  *   1. Network thread captures ctx immediately, sets packet handled.
@@ -96,22 +99,36 @@ public final class ChatRequestHandler {
             Consumer<Object> responder) {
         try {
             AiExecutor.get().submit(() -> {
-                // Phase 1: echo (no provider call).
-                // Phase 2+: AiDispatcher.dispatch(pkt, sender) -> Claude provider.
-                String reply = "echo: " + pkt.message();
-                ChatResponsePacket resp = new ChatResponsePacket(pkt.requestId(), reply);
+                // Phase 2: dispatch via AiDispatcher (AI-04). Runs synchronously inside
+                // this task — AiDispatcher does NOT submit to AiExecutor itself.
+                try {
+                    com.forgebook.ai.AiDispatcher.Result result =
+                        com.forgebook.ai.AiDispatcher.INSTANCE.dispatch(pkt.message(), sender);
 
-                // D-19: enqueueWork ONLY for the final send — the send is the
-                // game-state touch (serializes on the network send queue, which
-                // is thread-confined to the server main thread via enqueueWork).
-                enqueueWork.accept(() -> {
-                    Consumer<Object> sink = responseSinkForTests;
-                    if (sink != null) {
-                        sink.accept(resp);
-                    } else {
-                        responder.accept(resp);
-                    }
-                });
+                    // D-19: enqueueWork ONLY for the final game-state mutation (the send).
+                    enqueueWork.accept(() -> {
+                        Object out;
+                        if (result instanceof com.forgebook.ai.AiDispatcher.Reply r) {
+                            out = new ChatResponsePacket(pkt.requestId(), r.text());
+                        } else {
+                            com.forgebook.ai.AiDispatcher.Error err =
+                                (com.forgebook.ai.AiDispatcher.Error) result;
+                            out = new ChatErrorPacket(pkt.requestId(), err.code(), err.humanReadable());
+                        }
+                        Consumer<Object> sink = responseSinkForTests;
+                        if (sink != null) sink.accept(out); else responder.accept(out);
+                    });
+                } catch (Exception ex) {
+                    // T-02-07-08: exception message goes only to server log; client gets static string.
+                    LOG.error("Dispatch failed for {}",
+                        sender != null ? sender.getUUID() : "<no sender>", ex);
+                    enqueueWork.accept(() -> {
+                        ChatErrorPacket err = new ChatErrorPacket(
+                            pkt.requestId(), ErrorCode.PROVIDER, "Internal error.");
+                        Consumer<Object> sink = responseSinkForTests;
+                        if (sink != null) sink.accept(err); else responder.accept(err);
+                    });
+                }
             });
         } catch (RejectedExecutionException e) {
             // D-20 / D-21: queue overflow -> send OVERLOADED error.

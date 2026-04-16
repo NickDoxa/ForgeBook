@@ -69,6 +69,14 @@ public class ForgeBookMod {
                 com.forgebook.util.AiExecutor.start());
         MinecraftForge.EVENT_BUS.addListener(com.forgebook.util.AiExecutor::onServerStopping);
 
+        // Plan 02-07 / AI-08 / D-08: pre-render system prompt at ServerStartedEvent.
+        // ServerStartedEvent fires AFTER AiExecutor.start() (above) so buildAndCache
+        // can submit the CurseForge fetch to AiExecutor without "executor not started" failure.
+        // Listener pattern matches the ServerStartingEvent listeners above.
+        MinecraftForge.EVENT_BUS.addListener(
+            (net.minecraftforge.event.server.ServerStartedEvent e) ->
+                com.forgebook.ai.SystemPromptBuilder.buildAndCache(e.getServer()));
+
         // D-10, SCAF-02, SCAF-04: the ONLY entry into client-dist code.
         DistExecutor.safeRunWhenOn(Dist.CLIENT,
             () -> com.forgebook.client.ClientSetup::init);
