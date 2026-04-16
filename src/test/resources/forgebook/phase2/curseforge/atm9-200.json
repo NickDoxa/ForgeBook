@@ -1,0 +1,41 @@
+{
+  "data": {
+    "id": 520914,
+    "gameId": 432,
+    "name": "All the Mods 9",
+    "slug": "all-the-mods-9",
+    "links": {
+      "websiteUrl": "https://www.curseforge.com/minecraft/modpacks/all-the-mods-9",
+      "wikiUrl": "",
+      "issuesUrl": "",
+      "sourceUrl": ""
+    },
+    "summary": "All the Mods 9 is a CurseForge modpack created by the ATM Team. It follows the same tradition of All The Mods packs and has well over 400 mods including Kitchen Sink packs.",
+    "status": 4,
+    "downloadCount": 15000000,
+    "isFeatured": false,
+    "primaryCategoryId": 4475,
+    "categories": [],
+    "classId": 4471,
+    "authors": [],
+    "logo": {
+      "id": 1001,
+      "modId": 520914,
+      "title": "All the Mods 9",
+      "description": "",
+      "thumbnailUrl": "https://media.forgecdn.net/avatars/thumbnails/999/111/256/256/example-thumbnail.png",
+      "url": "https://media.forgecdn.net/avatars/999/111/all-the-mods-9.png"
+    },
+    "screenshots": [],
+    "mainFileId": 5000001,
+    "latestFiles": [],
+    "latestFilesIndexes": [],
+    "dateCreated": "2023-10-01T00:00:00Z",
+    "dateModified": "2024-01-01T00:00:00Z",
+    "dateReleased": "2023-10-01T00:00:00Z",
+    "allowModDistribution": true,
+    "gamePopularityRank": 1,
+    "isAvailable": true,
+    "thumbsUpCount": 9999
+  }
+}
