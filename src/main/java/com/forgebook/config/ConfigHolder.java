@@ -32,11 +32,14 @@ public final class ConfigHolder {
             ForgebookServerConfig.AI_PROVIDER.get(),
             new ApiKey(ForgebookServerConfig.AI_API_KEY.get()),
             ForgebookServerConfig.AI_MODEL.get(),
+            ForgebookServerConfig.MAX_TOKENS.get(),                          // NEW (Phase 2 — D-05)
             modpackId,
             new ApiKey(ForgebookServerConfig.CURSEFORGE_API_KEY.get()),
             ForgebookServerConfig.OP_ONLY.get(),
             ForgebookServerConfig.RATE_LIMIT_PER_MINUTE.get(),
             ForgebookServerConfig.ENABLE_WEB_SEARCH.get(),
+            ForgebookServerConfig.WEB_SEARCH_PROVIDER.get(),                 // NEW (Phase 2 — D-01)
+            new ApiKey(ForgebookServerConfig.WEB_SEARCH_API_KEY.get()),      // NEW (Phase 2 — D-02)
             ForgebookServerConfig.CONFIG_VERSION.get()
         );
     }

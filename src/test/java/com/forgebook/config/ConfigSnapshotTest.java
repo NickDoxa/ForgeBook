@@ -2,9 +2,28 @@ package com.forgebook.config;
 
 import static org.junit.jupiter.api.Assertions.*;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import com.electronwill.nightconfig.core.CommentedConfig;
 
 class ConfigSnapshotTest {
+
+    /**
+     * Load ForgebookServerConfig.SPEC with an in-memory config populated with defaults.
+     * This allows ConfigValue.get() to work in unit tests without a real TOML file.
+     */
+    @BeforeEach
+    void loadSpecDefaults() {
+        CommentedConfig cfg = CommentedConfig.inMemory();
+        ForgebookServerConfig.SPEC.correct(cfg);
+        ForgebookServerConfig.SPEC.setConfig(cfg);
+    }
+
+    @AfterEach
+    void unloadSpec() {
+        ForgebookServerConfig.SPEC.setConfig(null);
+    }
 
     /** Helper to build a fully-populated 12-field snapshot for tests. */
     private static ConfigSnapshot makeSnapshot(
@@ -64,7 +83,7 @@ class ConfigSnapshotTest {
 
     @Test
     void holder_buildFromSpec_maxTokensEqualsDefault() {
-        // buildFromSpec reads from the live ForgeConfigSpec — defaults apply when no TOML loaded
+        // buildFromSpec reads from the live ForgeConfigSpec loaded with defaults
         ConfigSnapshot snap = ConfigHolder.buildFromSpec();
         // MAX_TOKENS default is 1024 per D-05
         assertEquals(1024, snap.maxTokens());
