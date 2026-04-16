@@ -49,7 +49,7 @@
   - [x] 02-04-PLAN.md — CurseForge integration: ModpackContext record, CurseForgeClient.fetch (x-api-key + Accept headers, 500-char summary cap), ModpackContextCache volatile holder, graceful degradation (CF-02)
   - [x] 02-05-PLAN.md — Tools & grounding: ModDocsScraper (8-step selector chain + denoise, D-16), PromptFraming (<mod_doc trust="untrusted"> nonce-tagged framing, 8000-char truncation per D-14), WebSearchAdapter interface + DuckDuckGoHtmlAdapter (default) + BraveSearchAdapter (fallback), all four tool impls, ToolRegistry
   - [x] 02-06-PLAN.md — Agent core: AgentLoop (6-iteration cap, parallel D-11, error-tolerant D-12), SystemPromptBuilder (pure build + buildAndCache orchestration), SystemPromptCache volatile holder, ScriptedAiProvider test seam
-  - [ ] 02-07-PLAN.md — Wiring & SC-5: AiDispatcher sealed Result + INSTANCE, ProviderFactory, ChatRequestHandler upgrade from echo to dispatch, ForgeBookMod ServerStartedEvent listener, ForgebookReloadCommand prompt rebuild, end-to-end SC-5 AgentLoopE2ETest
+  - [x] 02-07-PLAN.md — Wiring & SC-5: AiDispatcher sealed Result + INSTANCE, ProviderFactory, ChatRequestHandler upgrade from echo to dispatch, ForgeBookMod ServerStartedEvent listener, ForgebookReloadCommand prompt rebuild, end-to-end SC-5 AgentLoopE2ETest
 **UI hint**: no
 
 ### Phase 3: Command Surface & Safety Controls
