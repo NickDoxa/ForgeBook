@@ -1,10 +1,18 @@
 package com.forgebook.network.handler;
 
+import com.forgebook.ai.AiDispatcher;
+import com.forgebook.ai.DispatchContext;
+import com.forgebook.ai.RequestKind;
+import com.forgebook.config.ConfigHolder;
+import com.forgebook.config.ConfigSnapshot;
 import com.forgebook.network.ForgebookNetwork;
 import com.forgebook.network.packet.ChatErrorPacket;
 import com.forgebook.network.packet.ChatErrorPacket.ErrorCode;
 import com.forgebook.network.packet.ChatRequestPacket;
 import com.forgebook.network.packet.ChatResponsePacket;
+import com.forgebook.safety.Authorizer;
+import com.forgebook.safety.RateLimiterHolder;
+import com.forgebook.safety.RequestAuditLogger;
 import com.forgebook.util.AiExecutor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
@@ -31,6 +39,18 @@ import org.apache.logging.log4j.Logger;
  *
  * Pitfall 3: reversing 2 and 3 (putting submit inside enqueueWork) freezes the
  * server tick. Explicitly prohibited.
+ *
+ * <h2>SAFE-06: network-thread authorization precheck (Plan 03-05)</h2>
+ * Authorizer.authorize runs on the Netty network thread BEFORE AiExecutor.submit.
+ * Rationale: AiExecutor's ArrayBlockingQueue(64) is a finite resource — spoofed
+ * packets from a malicious client must not be allowed to enqueue, even if the
+ * dispatch inside would have denied them. Authorizer re-reads player.hasPermissions(2)
+ * server-side, so client-forged permission claims are ineffective.
+ *
+ * On Denied: a ChatErrorPacket is returned via the existing responder/sink path,
+ * wrapped in enqueueWork so the send happens on the tick thread (Pitfall 2 —
+ * disconnected-player safety). RequestAuditLogger.logDenied fires once with
+ * (uuid, CHAT_UI, errorCode, startNanos).
  *
  * D-20 rejection semantics: when aiExecutor's ArrayBlockingQueue(64) overflows,
  * AbortPolicy throws RejectedExecutionException — we catch and send
@@ -97,24 +117,50 @@ public final class ChatRequestHandler {
             ServerPlayer sender,
             java.util.function.Consumer<Runnable> enqueueWork,
             Consumer<Object> responder) {
+        // SAFE-06: authorize on the NETWORK THREAD before consuming AiExecutor queue capacity.
+        // Spoofed client packets cannot forge hasPermissions(2) — the server re-reads it here.
+        // D-14: single volatile load of ConfigSnapshot; pass down to Authorizer.
+        ConfigSnapshot snap = ConfigHolder.get();
+        if (snap == null) {
+            LOG.error("ChatRequestHandler invoked before ConfigHolder seeded; rejecting.");
+            ChatErrorPacket errInit = new ChatErrorPacket(
+                pkt.requestId(), ErrorCode.PROVIDER, "ForgeBook not initialized — check server logs.");
+            Consumer<Object> sinkInit = responseSinkForTests;
+            if (sinkInit != null) sinkInit.accept(errInit); else responder.accept(errInit);
+            return;
+        }
+        long startNanos = System.nanoTime();
+        Authorizer.Result auth = Authorizer.authorize(
+            snap, sender, RequestKind.CHAT_UI, RateLimiterHolder.get());
+        if (auth instanceof Authorizer.Denied d) {
+            RequestAuditLogger.logDenied(
+                sender != null ? sender.getUUID() : null,
+                RequestKind.CHAT_UI, d.code(), startNanos);
+            // Hop to tick thread for the final send (preserves Phase 2 enqueueWork contract — the
+            // responder may touch network state that Forge expects to be mutated on the server tick).
+            enqueueWork.accept(() -> {
+                ChatErrorPacket err = new ChatErrorPacket(pkt.requestId(), d.code(), d.humanReadable());
+                Consumer<Object> sink = responseSinkForTests;
+                if (sink != null) sink.accept(err); else responder.accept(err);
+            });
+            return;
+        }
+        // auth is Allowed — fall through to existing Phase 2 body.
         try {
             AiExecutor.get().submit(() -> {
                 // Phase 2: dispatch via AiDispatcher (AI-04). Runs synchronously inside
                 // this task — AiDispatcher does NOT submit to AiExecutor itself.
                 try {
-                    com.forgebook.ai.AiDispatcher.Result result =
-                        com.forgebook.ai.AiDispatcher.INSTANCE.dispatch(
-                            new com.forgebook.ai.DispatchContext(
-                                pkt.message(), sender, com.forgebook.ai.RequestKind.CHAT_UI));
+                    AiDispatcher.Result result = AiDispatcher.INSTANCE.dispatch(
+                        new DispatchContext(pkt.message(), sender, RequestKind.CHAT_UI));
 
                     // D-19: enqueueWork ONLY for the final game-state mutation (the send).
                     enqueueWork.accept(() -> {
                         Object out;
-                        if (result instanceof com.forgebook.ai.AiDispatcher.Reply r) {
+                        if (result instanceof AiDispatcher.Reply r) {
                             out = new ChatResponsePacket(pkt.requestId(), r.text());
                         } else {
-                            com.forgebook.ai.AiDispatcher.Error err =
-                                (com.forgebook.ai.AiDispatcher.Error) result;
+                            AiDispatcher.Error err = (AiDispatcher.Error) result;
                             out = new ChatErrorPacket(pkt.requestId(), err.code(), err.humanReadable());
                         }
                         Consumer<Object> sink = responseSinkForTests;
