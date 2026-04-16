@@ -101,7 +101,13 @@
   3. README documents installation, every config field, the server-side-only API key posture, the OP-only default, and the `chmod 600 forgebook-server.toml` recommendation; `THIRD_PARTY_NOTICES.md` credits jsoup.
   4. A mod-compatibility matrix is recorded in the repo covering JEI, REI, Sodium/Embeddium, Iris/Oculus, Jade, Mouse Tweaks, Quark, and Inventory HUD+, manually verified at GUI scales 1 and 2.
   5. The built jar (not a dev run) loads and serves a real `/forgebook item` query on a clean Forge 1.20.1-47.4.18 dedicated server with nothing else installed but ForgeBook.
-**Plans**: TBD
+**Plans**: 6 plans
+  - [ ] 05-01-PLAN.md — Packaging finalization: bump build.gradle to 1.0.0, populate mods.toml credits/issueTrackerURL, create second logo slot as byte-copy of existing placeholder (REL-01)
+  - [ ] 05-02-PLAN.md — Docs: write repo-root README.md (install, full config tables, security posture, chmod 600, commands, compatibility/logo/credits/license cross-links); verify LICENSE + THIRD_PARTY_NOTICES.md (jsoup MIT) unchanged (REL-03)
+  - [ ] 05-03-PLAN.md — i18n resource: expand en_us.json from 21 → 47 keys with 26 new forgebook.command.* keys (REL-02)
+  - [ ] 05-04-PLAN.md — i18n refactor: Authorizer.Denied + AiDispatcher.Error split-field (String humanReadable + Component feedback); 5 command classes + RagItemPipeline use Component.translatable; wire format preserved (REL-02)
+  - [ ] 05-05-PLAN.md — Compat matrix: docs/COMPATIBILITY.md with 8-row skeleton + 9-step testing protocol + re-run triggers; human-verify checkpoint for row-filling (REL-04)
+  - [ ] 05-06-PLAN.md — Release smoke: docs/RELEASE-SMOKE.md with 9-step protocol; automated Step 1 (clean build + jsoup relocation check); human-verify checkpoint for Steps 2-9 on clean dedicated server (REL-05)
 **UI hint**: no
 
 ## Progress
