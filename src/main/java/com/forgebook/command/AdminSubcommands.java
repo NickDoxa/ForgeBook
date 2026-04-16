@@ -49,19 +49,25 @@ public final class AdminSubcommands {
     // ------------------------------------------------------------------
 
     public static int executeDisable(CommandContext<CommandSourceStack> ctx) {
+        // Phase 5 / REL-02: BiConsumer String now carries a translation KEY (not prose).
+        // The edge wrapper lifts it to Component.translatable.
         return executeDisableInternal(
             ctx.getSource().getTextName(),
-            (text, broadcast) -> ctx.getSource().sendSuccess(
-                () -> Component.literal(text), broadcast));
+            (key, broadcast) -> ctx.getSource().sendSuccess(
+                () -> Component.translatable(key), broadcast));
     }
 
     public static int executeEnable(CommandContext<CommandSourceStack> ctx) {
+        // Phase 5 / REL-02: BiConsumer String now carries a translation KEY (not prose).
         return executeEnableInternal(
             ctx.getSource().getTextName(),
-            (text, broadcast) -> ctx.getSource().sendSuccess(
-                () -> Component.literal(text), broadcast));
+            (key, broadcast) -> ctx.getSource().sendSuccess(
+                () -> Component.translatable(key), broadcast));
     }
 
+    // INTENTIONAL — executeStats emits StatsAccumulator.render() which is structured tabular
+    // text, not natural-language prose. Keeping Component.literal here per RESEARCH i18n
+    // audit carve-out (PATTERNS.md §AdminSubcommands L121-131).
     public static int executeStats(CommandContext<CommandSourceStack> ctx) {
         return executeStatsInternal(
             (text, broadcast) -> ctx.getSource().sendSuccess(
@@ -79,11 +85,12 @@ public final class AdminSubcommands {
     static int executeDisableInternal(String textName, BiConsumer<String, Boolean> send) {
         boolean wasEnabled = !KillSwitch.isDisabled();
         KillSwitch.setDisabled(true);
-        String msg = wasEnabled
-            ? "ForgeBook disabled. New requests will return DISABLED."
-            : "ForgeBook is already disabled.";
+        // Phase 5 / REL-02: emit TRANSLATION KEY, not prose. Edge wrapper lifts to Component.translatable.
+        String key = wasEnabled
+            ? "forgebook.command.disable.success"
+            : "forgebook.command.disable.already";
         // sendSuccess(..., true) — broadcast to all OPs.
-        send.accept(msg, true);
+        send.accept(key, true);
         LOG.info("ForgeBook disabled by {}", textName);
         return Command.SINGLE_SUCCESS;
     }
@@ -95,11 +102,12 @@ public final class AdminSubcommands {
     static int executeEnableInternal(String textName, BiConsumer<String, Boolean> send) {
         boolean wasDisabled = KillSwitch.isDisabled();
         KillSwitch.setDisabled(false);
-        String msg = wasDisabled
-            ? "ForgeBook enabled. New requests will be processed."
-            : "ForgeBook is already enabled.";
+        // Phase 5 / REL-02: emit TRANSLATION KEY, not prose.
+        String key = wasDisabled
+            ? "forgebook.command.enable.success"
+            : "forgebook.command.enable.already";
         // sendSuccess(..., true) — broadcast to all OPs.
-        send.accept(msg, true);
+        send.accept(key, true);
         LOG.info("ForgeBook enabled by {}", textName);
         return Command.SINGLE_SUCCESS;
     }

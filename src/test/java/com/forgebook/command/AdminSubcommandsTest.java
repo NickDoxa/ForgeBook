@@ -54,6 +54,7 @@ class AdminSubcommandsTest {
 
     // ================================================================================
     // Test 1: executeDisable flips KillSwitch from false→true and broadcasts.
+    // Phase 5 / REL-02: BiConsumer String now carries a TRANSLATION KEY, not prose.
     // ================================================================================
     @Test
     void executeDisable_flips_killswitch_and_broadcasts() {
@@ -65,9 +66,8 @@ class AdminSubcommandsTest {
         assertTrue(KillSwitch.isDisabled(), "KillSwitch must be flipped to disabled");
         assertEquals(1, recorder.calls.size(), "exactly one send call");
         Recorder.Call call = recorder.calls.get(0);
-        assertTrue(call.text.contains("disabled"), call.text);
-        assertTrue(call.text.contains("DISABLED") || call.text.contains("New requests"),
-            "disable message must describe behavior: " + call.text);
+        assertEquals("forgebook.command.disable.success", call.text,
+            "disable success must emit the translation key, not prose");
         assertTrue(call.broadcast, "disable must broadcast (broadcast=true)");
     }
 
@@ -84,7 +84,8 @@ class AdminSubcommandsTest {
         assertTrue(KillSwitch.isDisabled(), "KillSwitch stays disabled");
         assertEquals(1, recorder.calls.size());
         Recorder.Call call = recorder.calls.get(0);
-        assertTrue(call.text.contains("already"), "no-op message: " + call.text);
+        assertEquals("forgebook.command.disable.already", call.text,
+            "no-op disable must emit the already-disabled translation key");
         assertTrue(call.broadcast);
     }
 
@@ -101,7 +102,8 @@ class AdminSubcommandsTest {
         assertFalse(KillSwitch.isDisabled(), "KillSwitch must be flipped to enabled");
         assertEquals(1, recorder.calls.size());
         Recorder.Call call = recorder.calls.get(0);
-        assertTrue(call.text.contains("enabled"), call.text);
+        assertEquals("forgebook.command.enable.success", call.text,
+            "enable success must emit the translation key, not prose");
         assertTrue(call.broadcast, "enable must broadcast");
     }
 
@@ -118,7 +120,8 @@ class AdminSubcommandsTest {
         assertFalse(KillSwitch.isDisabled());
         assertEquals(1, recorder.calls.size());
         Recorder.Call call = recorder.calls.get(0);
-        assertTrue(call.text.contains("already"), "no-op message: " + call.text);
+        assertEquals("forgebook.command.enable.already", call.text,
+            "no-op enable must emit the already-enabled translation key");
         assertTrue(call.broadcast);
     }
 

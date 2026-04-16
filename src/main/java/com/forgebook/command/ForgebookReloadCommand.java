@@ -69,7 +69,7 @@ public final class ForgebookReloadCommand {
         ConfigSnapshot snap = ConfigHolder.get();
         RateLimiterHolder.swap(new RateLimiter(snap.rateLimitPerMinute()));
         ctx.getSource().sendSuccess(
-            () -> Component.literal("ForgeBook config + system prompt reloaded."), true);
+            () -> Component.translatable("forgebook.command.reload.success"), true);
         LOG.info("ForgeBook config reloaded by {}", ctx.getSource().getTextName());
         return Command.SINGLE_SUCCESS;
     }

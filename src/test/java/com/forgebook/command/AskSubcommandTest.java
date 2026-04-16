@@ -257,7 +257,8 @@ class AskSubcommandTest {
             auditStatic.verify(() -> RequestAuditLogger.logFailure(
                 eq(UUID_A), eq(RequestKind.ASK), eq(ErrorCode.OVERLOADED),
                 anyInt(), anyInt(), anyLong()), times(1));
-            assertEquals("Server is busy. Try again.", failureSink.last);
+            // Phase 5 / REL-02: sendFailureKey forwards the translation KEY to the test sink.
+            assertEquals("forgebook.command.overloaded", failureSink.last);
         }
     }
 

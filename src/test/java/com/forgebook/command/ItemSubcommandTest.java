@@ -104,7 +104,8 @@ class ItemSubcommandTest {
 
             assertEquals(0, rc, "empty hand must return 0");
             assertNotNull(sink.lastFailure, "empty hand must sendFailure");
-            assertTrue(sink.lastFailure.contains("Hold an item"), sink.lastFailure);
+            // Phase 5 / REL-02: sendFailureKey forwards the translation KEY to the test sink.
+            assertEquals("forgebook.command.item.no_held", sink.lastFailure);
             // Authorizer never consulted; executorSupplier never touched.
             authStatic.verifyNoInteractions();
             assertEquals(0, executorCalls.get(), "SAFE-06: executor never touched on empty-hand short-circuit");
@@ -226,7 +227,8 @@ class ItemSubcommandTest {
             auditStatic.verify(() -> RequestAuditLogger.logFailure(
                 eq(uuid), eq(RequestKind.ITEM), eq(ErrorCode.OVERLOADED),
                 anyInt(), anyInt(), anyLong()), times(1));
-            assertEquals("Server is busy. Try again.", sink.lastFailure);
+            // Phase 5 / REL-02: sendFailureKey forwards the translation KEY to the test sink.
+            assertEquals("forgebook.command.overloaded", sink.lastFailure);
         }
     }
 

@@ -188,13 +188,13 @@ public final class ItemSubcommand {
             Supplier<ExecutorService> executorSupplier) {
 
         if (isEmptyHand) {
-            sendFailure(src, "Hold an item in your main hand, or use /forgebook item <item>.");
+            sendFailureKey(src, "forgebook.command.item.no_held");
             return 0;
         }
 
         ResourceLocation rl = resourceLookup.apply(item);
         if (rl == null) {
-            sendFailure(src, "Could not identify item.");
+            sendFailureKey(src, "forgebook.command.item.unknown");
             return 0;
         }
         String modId = rl.getNamespace();
@@ -205,7 +205,7 @@ public final class ItemSubcommand {
         // D-14: single volatile load of ConfigSnapshot.
         ConfigSnapshot snap = snapshotSupplier.get();
         if (snap == null) {
-            sendFailure(src, "ForgeBook not initialized — check server logs.");
+            sendFailureKey(src, "forgebook.command.not_initialized");
             return 0;
         }
         long startNanos = System.nanoTime();
@@ -213,7 +213,12 @@ public final class ItemSubcommand {
             snap, player, RequestKind.ITEM, limiterSupplier.get());
         if (auth instanceof Authorizer.Denied d) {
             RequestAuditLogger.logDenied(uuid, RequestKind.ITEM, d.code(), startNanos);
-            sendFailure(src, d.humanReadable());
+            // Phase 5 / REL-02: Denied.feedback carries the Component.translatable.
+            // humanReadable is the English fallback forwarded to the test sink.
+            if (src != null) {
+                src.sendFailure(d.feedback());
+            }
+            failureSinkForTests.accept(d.humanReadable());
             return 0;
         }
 
@@ -229,28 +234,32 @@ public final class ItemSubcommand {
                     RagItemPipeline.run(src, player, modId, itemId, modURL, RequestKind.ITEM);
                 } catch (Exception ex) {
                     LOG.error("RAG pipeline failed for item {} by {}", itemId, uuid, ex);
-                    sendFailure(src, "Internal error.");
+                    sendFailureKey(src, "forgebook.command.internal_error");
                 }
             });
         } catch (RejectedExecutionException e) {
             LOG.warn("aiExecutor rejected RAG submission for {}; returning OVERLOADED.", uuid);
             RequestAuditLogger.logFailure(
                 uuid, RequestKind.ITEM, ErrorCode.OVERLOADED, 0, 0, 0L);
-            sendFailure(src, "Server is busy. Try again.");
+            sendFailureKey(src, "forgebook.command.overloaded");
         }
         return Command.SINGLE_SUCCESS;
     }
 
     /**
-     * Send a failure message — null-safe when {@code src} is null (unit tests). In production
-     * {@code src} is a real {@link CommandSourceStack} and this delegates to {@link
-     * CommandSourceStack#sendFailure(Component)}.
+     * Phase 5 / REL-02: failure emission that wraps a translation key in
+     * {@link Component#translatable(String, Object...)} for the command surface.
+     * The key (not the resolved prose) is forwarded to the test sink, so assertions
+     * flip from English prose to key strings.
+     *
+     * Null-safe when {@code src} is null (unit tests). In production {@code src} is a
+     * real {@link CommandSourceStack} and this delegates to {@link CommandSourceStack#sendFailure(Component)}.
      */
-    private static void sendFailure(CommandSourceStack src, String text) {
+    private static void sendFailureKey(CommandSourceStack src, String key, Object... args) {
         if (src != null) {
-            src.sendFailure(Component.literal(text));
+            src.sendFailure(Component.translatable(key, args));
         }
-        failureSinkForTests.accept(text);
+        failureSinkForTests.accept(key);
     }
 
     /**
