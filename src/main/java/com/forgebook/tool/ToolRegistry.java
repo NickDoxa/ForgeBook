@@ -67,18 +67,19 @@ public final class ToolRegistry {
 
     /**
      * Replace all registered tools with the given map.
-     * Package-private — for Plan 07 AgentLoopE2ETest to install stub tools without Forge.
+     * Public test helper — for AgentLoopTest and Plan 07 AgentLoopE2ETest to install
+     * stub tools without Forge. Documented as test-only; no production code calls this.
      */
-    static void injectForTests(Map<String, Tool> overrides) {
+    public static void injectForTests(Map<String, Tool> overrides) {
         TOOLS.clear();
         TOOLS.putAll(overrides);
     }
 
     /**
      * Clear all registered tools.
-     * Package-private — callable in @AfterEach to restore a clean registry state.
+     * Public test helper — callable in @AfterEach to restore a clean registry state.
      */
-    static void resetForTests() {
+    public static void resetForTests() {
         TOOLS.clear();
     }
 }
