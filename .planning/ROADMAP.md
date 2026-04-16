@@ -69,7 +69,7 @@
   - [x] 03-04-PLAN.md — RagItemPipeline: SafeHttpFetcher -> scraper -> framing -> single-shot provider.chat with empty tools[] + 'Source:' citation (CMD-02, CMD-07)
   - [x] 03-05-PLAN.md — ChatRequestHandler SAFE-06 precheck: Authorizer before AiExecutor.submit on network thread, no queue consumption on denial (SAFE-06)
   - [x] 03-06a-PLAN.md — Wiring foundation: ForgebookReloadCommand.executeReload extraction + RateLimiterHolder.swap + ForgebookCommands tree registration (ask/item/reload/disable/enable/stats) + subcommand stub classes + ForgeBookMod listener swap + RateLimiterHolder seeding on ServerStartingEvent (CMD-01, CMD-04)
-  - [ ] 03-06b-PLAN.md — Subcommand bodies: ItemSubcommand (held + argument forms, modURL lookup, RagItemPipeline submit) + AskSubcommand (AiDispatcher dispatch with server.execute hop) + AdminSubcommands (disable/enable/stats) + in-game smoke checkpoint (CMD-02, CMD-03, CMD-05, CMD-06)
+  - [x] 03-06b-PLAN.md — Subcommand bodies: ItemSubcommand (held + argument forms, modURL lookup, RagItemPipeline submit) + AskSubcommand (AiDispatcher dispatch with server.execute hop) + AdminSubcommands (disable/enable/stats) + in-game smoke checkpoint (CMD-02, CMD-03, CMD-05, CMD-06)
 **UI hint**: no
 
 ### Phase 4: In-Inventory Chat UI
