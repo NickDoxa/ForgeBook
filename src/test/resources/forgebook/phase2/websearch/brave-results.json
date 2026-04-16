@@ -1,0 +1,50 @@
+{
+  "query": {
+    "original": "ExampleMod Minecraft",
+    "more_results_available": true
+  },
+  "web": {
+    "results": [
+      {
+        "title": "ExampleMod Official Page",
+        "url": "https://modrinth.com/mod/example-mod",
+        "description": "ExampleMod is a powerful Minecraft mod for tech progression and automation."
+      },
+      {
+        "title": "ExampleMod Wiki",
+        "url": "https://wiki.example.com/ExampleMod",
+        "description": "Comprehensive wiki covering all ExampleMod features, crafting recipes, and machine guides."
+      },
+      {
+        "title": "CurseForge ExampleMod",
+        "url": "https://curseforge.com/minecraft/mc-mods/examplemod",
+        "description": "Download ExampleMod from CurseForge for Minecraft 1.20.1 and 1.20.4."
+      },
+      {
+        "title": "ExampleMod GitHub Repository",
+        "url": "https://github.com/example/examplemod",
+        "description": "Source code and issue tracker for ExampleMod. MIT licensed open-source project."
+      },
+      {
+        "title": "FTB Wiki ExampleMod",
+        "url": "https://ftb.fandom.com/wiki/ExampleMod",
+        "description": "FTB wiki entry for ExampleMod covering all items, machines, and crafting recipes."
+      },
+      {
+        "title": "Reddit FTB ExampleMod Discussion",
+        "url": "https://www.reddit.com/r/feedthebeast/examplemod",
+        "description": "Community discussions about ExampleMod features and troubleshooting on Reddit."
+      },
+      {
+        "title": "ExampleMod Documentation",
+        "url": "https://docs.examplemod.io/getting-started",
+        "description": "Official documentation for ExampleMod including API reference and configuration guide."
+      },
+      {
+        "title": "ExampleMod on Modrinth",
+        "url": "https://modrinth.com/mod/example-mod/versions",
+        "description": "All versions of ExampleMod available for download on Modrinth including changelogs."
+      }
+    ]
+  }
+}
