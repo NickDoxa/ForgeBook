@@ -23,11 +23,14 @@ public final class ForgebookServerConfig {
     public static final EnumValue<AiProviderKind> AI_PROVIDER;
     public static final ConfigValue<String> AI_API_KEY;
     public static final ConfigValue<String> AI_MODEL;
+    public static final IntValue MAX_TOKENS;
     public static final ConfigValue<String> CURSEFORGE_MODPACK_ID;
     public static final ConfigValue<String> CURSEFORGE_API_KEY;
     public static final BooleanValue OP_ONLY;
     public static final IntValue RATE_LIMIT_PER_MINUTE;
     public static final BooleanValue ENABLE_WEB_SEARCH;
+    public static final EnumValue<WebSearchProviderKind> WEB_SEARCH_PROVIDER;
+    public static final ConfigValue<String> WEB_SEARCH_API_KEY;
     public static final IntValue CONFIG_VERSION;
 
     static {
@@ -41,8 +44,10 @@ public final class ForgebookServerConfig {
                        .defineEnum("ai_provider", AiProviderKind.ANTHROPIC);
         AI_API_KEY  = b.comment("API key for the selected provider. Redacted in logs.")
                        .define("ai_api_key", "");
-        AI_MODEL    = b.comment("Model ID to send to the provider. Provider-specific.")
-                       .define("ai_model", "claude-haiku-4");
+        AI_MODEL    = b.comment("Model ID to send to the provider. Provider-specific. Default is the Haiku 4.5 alias; pin to a snapshot like \"claude-haiku-4-5-20251001\" if you need deterministic behavior.")
+                       .define("ai_model", "claude-haiku-4-5");
+        MAX_TOKENS  = b.comment("Max tokens the AI provider may generate per request. Lower = cheaper + faster; higher = more detailed answers. Range: 128..8192.")
+                       .defineInRange("max_tokens", 1024, 128, 8192);
 
         b.pop();
 
@@ -60,6 +65,13 @@ public final class ForgebookServerConfig {
                                  .defineInRange("rate_limit_per_minute", 5, 1, 240);
         ENABLE_WEB_SEARCH = b.comment("Expose the web-search tool to the agent. Phase 2+ feature.")
                              .define("enable_web_search", false);
+        b.pop();
+
+        b.comment("Web-search tool backend (used only when enable_web_search = true).").push("websearch");
+        WEB_SEARCH_PROVIDER = b.comment("Web search backend. DUCKDUCKGO requires no API key (scrapes html.duckduckgo.com). BRAVE requires web_search_api_key (Brave Search API).")
+                               .defineEnum("web_search_provider", WebSearchProviderKind.DUCKDUCKGO);
+        WEB_SEARCH_API_KEY  = b.comment("API key for Brave Search (required only when web_search_provider = BRAVE). Redacted in logs.")
+                               .define("web_search_api_key", "");
         b.pop();
 
         b.push("meta");
