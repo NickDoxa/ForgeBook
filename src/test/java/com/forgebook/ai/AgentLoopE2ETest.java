@@ -133,7 +133,8 @@ class AgentLoopE2ETest {
             new AiTurn.FinalReply("Cited: " + FIXTURE_URL, false)
         ));
         AiDispatcher dispatcher = AiDispatcher.dispatcherForTests(new ScriptedAiProvider(queue));
-        AiDispatcher.Result result = dispatcher.dispatch("How do I use this item?", null);
+        AiDispatcher.Result result = dispatcher.dispatch(
+            new DispatchContext("How do I use this item?", null, RequestKind.CHAT_UI));
 
         assertInstanceOf(AiDispatcher.Reply.class, result,
             "expected Reply, got " + result);
@@ -156,7 +157,8 @@ class AgentLoopE2ETest {
                 new AiTurn.ToolUseBlock("t" + i, "fetch_mod_docs_page", Map.of("url", "")))));
         }
         AiDispatcher dispatcher = AiDispatcher.dispatcherForTests(new ScriptedAiProvider(queue));
-        AiDispatcher.Result result = dispatcher.dispatch("X", null);
+        AiDispatcher.Result result = dispatcher.dispatch(
+            new DispatchContext("X", null, RequestKind.CHAT_UI));
 
         assertInstanceOf(AiDispatcher.Error.class, result,
             "expected Error after iteration cap, got " + result);

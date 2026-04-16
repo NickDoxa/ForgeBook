@@ -12,7 +12,6 @@ import com.forgebook.tool.ToolRegistry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import net.minecraft.server.level.ServerPlayer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -80,11 +79,13 @@ public final class AiDispatcher {
 
     /**
      * Dispatch a chat request. Returns Reply or Error — never throws.
-     * MUST be called from inside an AiExecutor task (caller: ChatRequestHandler).
+     * MUST be called from inside an AiExecutor task (caller: ChatRequestHandler,
+     * AskSubcommand — both after Authorizer.authorize Allowed).
      *
      * D-14: ConfigHolder.get() is called exactly once at entry — single volatile load.
+     * Phase 3: emits RequestAuditLogger.logSuccess/logFailure on the two terminal paths.
      */
-    public Result dispatch(String userMessage, ServerPlayer sender) {
+    public Result dispatch(com.forgebook.ai.DispatchContext dc) {
         // D-14: single volatile load of config snapshot at entry
         ConfigSnapshot snap = ConfigHolder.get();
         if (snap == null) {
@@ -92,6 +93,8 @@ public final class AiDispatcher {
                 "impossible after ServerStartingEvent. Check ForgeBookMod wiring.");
             return new Error(ErrorCode.PROVIDER, "ForgeBook not initialized — check server logs.");
         }
+
+        long startNanos = System.nanoTime();
 
         String systemPrompt = SystemPromptCache.get();
         if (systemPrompt.isEmpty()) {
@@ -106,7 +109,7 @@ public final class AiDispatcher {
 
         // Build initial message list (mutable — AgentLoop appends tool turns)
         List<ClaudeMessage> initialMessages = new ArrayList<>();
-        initialMessages.add(ClaudeMessage.userText(userMessage));
+        initialMessages.add(ClaudeMessage.userText(dc.message()));
 
         // Convert ToolRegistry entries to ToolDef wire shapes
         Collection<Tool> tools = ToolRegistry.all();
@@ -128,24 +131,44 @@ public final class AiDispatcher {
             outcome = loop.run(req);
         } catch (Exception e) {
             LOG.error("AgentLoop threw unexpected exception for {}",
-                sender != null ? sender.getUUID() : "<no sender>", e);
+                dc.sender() != null ? dc.sender().getUUID() : "<no sender>", e);
             return new Error(ErrorCode.PROVIDER, "Unexpected internal error.");
         }
 
+        long latencyMs = (System.nanoTime() - startNanos) / 1_000_000L;
+
         // Java 17 pattern-matching instanceof chain (sealed AiTurn variants).
-        // Switch-on-pattern is a preview feature in Java 17 — use instanceof chain per
-        // Plan 02 precedent (preview switches avoided).
         if (outcome instanceof AiTurn.FinalReply r) {
+            int inTok = r.usage().map(u -> u.inputTokens).orElseGet(() -> estimateTokens(dc.message()));
+            int outTok = r.usage().map(u -> u.outputTokens).orElseGet(() -> estimateTokens(r.text()));
+            if (dc.sender() != null) {
+                com.forgebook.safety.RequestAuditLogger.logSuccess(
+                    dc.sender().getUUID(), dc.kind(), inTok, outTok, latencyMs);
+            }
             return new Reply(r.text(), r.truncated());
         } else if (outcome instanceof AiTurn.ProviderError err) {
-            return mapError(err);
+            Error mapped = mapError(err);
+            if (dc.sender() != null) {
+                com.forgebook.safety.RequestAuditLogger.logFailure(
+                    dc.sender().getUUID(), dc.kind(), mapped.code(), 0, 0, latencyMs);
+            }
+            return mapped;
         } else {
             // AiTurn.ToolUses — AgentLoop should never return this (it loops until
             // FinalReply or ProviderError or iteration cap). Defensive case.
             LOG.error("AgentLoop returned ToolUses instead of FinalReply/ProviderError — " +
                 "this is a Plan 06 bug; surfacing as PROVIDER error.");
+            if (dc.sender() != null) {
+                com.forgebook.safety.RequestAuditLogger.logFailure(
+                    dc.sender().getUUID(), dc.kind(), ErrorCode.PROVIDER, 0, 0, latencyMs);
+            }
             return new Error(ErrorCode.PROVIDER, "AI agent did not produce a final reply.");
         }
+    }
+
+    /** Fallback token estimate when Usage is absent: 1 token per ~4 chars. */
+    private static int estimateTokens(String s) {
+        return s == null ? 0 : Math.max(1, s.length() / 4);
     }
 
     /**

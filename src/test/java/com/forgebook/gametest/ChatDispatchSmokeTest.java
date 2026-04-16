@@ -2,6 +2,8 @@ package com.forgebook.gametest;
 
 import com.forgebook.ai.AiDispatcher;
 import com.forgebook.ai.AiTurn;
+import com.forgebook.ai.DispatchContext;
+import com.forgebook.ai.RequestKind;
 import com.forgebook.ai.ScriptedAiProvider;
 import com.forgebook.ai.SystemPromptCache;
 import com.forgebook.config.ApiKey;
@@ -113,7 +115,8 @@ class ChatDispatchSmokeTest {
         // Test 1: Verify ChatRequestHandler wiring dispatches (not echo) by directly
         // calling AiDispatcher.dispatcherForTests and asserting the Result.
         AiDispatcher dispatcher = AiDispatcher.dispatcherForTests(scriptedProvider);
-        AiDispatcher.Result result = dispatcher.dispatch("hello forgebook", null);
+        AiDispatcher.Result result = dispatcher.dispatch(
+            new DispatchContext("hello forgebook", null, RequestKind.CHAT_UI));
 
         assertInstanceOf(AiDispatcher.Reply.class, result,
             "dispatch must return Reply for FinalReply scripted turn");
@@ -169,7 +172,8 @@ class ChatDispatchSmokeTest {
         Queue<AiTurn> queue = new LinkedList<>();
         queue.add(new AiTurn.FinalReply("answer about the mod", false));
         AiDispatcher d = AiDispatcher.dispatcherForTests(new ScriptedAiProvider(queue));
-        AiDispatcher.Result r = d.dispatch("what does this item do?", null);
+        AiDispatcher.Result r = d.dispatch(
+            new DispatchContext("what does this item do?", null, RequestKind.CHAT_UI));
 
         assertTrue(r instanceof AiDispatcher.Reply);
         assertFalse(((AiDispatcher.Reply) r).text().contains("echo: "),
