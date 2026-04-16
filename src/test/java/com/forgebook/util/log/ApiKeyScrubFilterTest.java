@@ -48,4 +48,38 @@ class ApiKeyScrubFilterTest {
         assertFalse(out.contains("sk-proj-W2"), out);
         assertTrue(out.contains("<redacted>"));
     }
+
+    // --- Phase 2: X-Subscription-Token (Brave Search API) scrub rules ---
+
+    @Test void redacts_X_Subscription_Token_header_value() {
+        // Test 1: Brave token in canonical header form is redacted
+        String result = ApiKeyScrubFilter.scrub("X-Subscription-Token: BSAabc123def456");
+        assertFalse(result.contains("BSAabc123def456"), result);
+        assertTrue(result.contains("<redacted>"), result);
+    }
+
+    @Test void regression_Authorization_still_scrubbed() {
+        // Test 2: existing Authorization rule not weakened
+        assertEquals("Authorization: <redacted>",
+            ApiKeyScrubFilter.scrub("Authorization: Bearer abc.def.ghi"));
+    }
+
+    @Test void regression_x_api_key_still_scrubbed() {
+        // Test 3: existing x-api-key rule not weakened
+        assertEquals("x-api-key: <redacted>",
+            ApiKeyScrubFilter.scrub("x-api-key: sk-ant-xxx"));
+    }
+
+    @Test void regression_sk_ant_prefix_still_scrubbed() {
+        // Test 4: existing sk-ant-* substring rule not weakened
+        assertEquals("token=sk-ant-<redacted> extra",
+            ApiKeyScrubFilter.scrub("token=sk-ant-abcDEF_123-xyz extra"));
+    }
+
+    @Test void redacts_x_subscription_token_lowercase() {
+        // Test 5: case-insensitive — lowercase header name also scrubbed
+        String result = ApiKeyScrubFilter.scrub("x-subscription-token: some-brave-token-value");
+        assertFalse(result.contains("some-brave-token-value"), result);
+        assertTrue(result.contains("<redacted>"), result);
+    }
 }
