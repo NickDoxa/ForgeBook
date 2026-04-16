@@ -83,8 +83,8 @@
   4. At GUI scales 1 through 4 on screens ≥1280×720 the chat panel renders without clipping vanilla widgets or the chat content itself; a minimum-width or stacked fallback triggers on smaller resolutions.
   5. With `enable_chat_interface = false` (CLIENT config), the button is never injected and the `ChatScreen` cannot be opened; the client source tree contains zero code paths that read or carry an API key value.
 **Plans**: 6 plans
-  - [ ] 04-01-PLAN.md — Value types + error-taxonomy color map: ChatEntry sealed interface, MessageBubble/ErrorCard records, LoadingIndicator dot cycler, enumerative color test (UI-04)
-  - [ ] 04-02-PLAN.md — Pure-function seams + session state: ChatPanelLayout.compute, InventoryButtonGeometry.compute, ClientChatSession singleton with stale-guard (UI-05, UI-07)
+  - [x] 04-01-PLAN.md — Value types + error-taxonomy color map: ChatEntry sealed interface, MessageBubble/ErrorCard records, LoadingIndicator dot cycler, enumerative color test (UI-04)
+  - [x] 04-02-PLAN.md — Pure-function seams + session state: ChatPanelLayout.compute, InventoryButtonGeometry.compute, ClientChatSession singleton with stale-guard (UI-05, UI-07)
   - [ ] 04-03-PLAN.md — Packet-sink bridge + disconnect listener: ClientPacketSinks volatile-sink holder, ChatResponsePacket/ChatErrorPacket handler rewires, SessionLifecycleListener (UI-05, UI-08)
   - [ ] 04-04-PLAN.md — ChatPanelWidget: AbstractWidget subclass with bubble/error/loading rendering, scroll math, Font.split wrapping (UI-04)
   - [ ] 04-05-PLAN.md — ChatScreen + InventoryButtonInjector + en_us.json + UI-08 CI grep + ClientSetup wiring (UI-01, UI-02, UI-03, UI-05, UI-06, UI-08)
