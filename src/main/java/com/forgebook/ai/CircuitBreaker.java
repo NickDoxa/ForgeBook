@@ -49,5 +49,5 @@ public final class CircuitBreaker {
     }
 
     /** For tests only: current consecutive-failure counter. */
-    int consecutiveFailures() { return consecutiveFailures.get(); }
+    public int consecutiveFailures() { return consecutiveFailures.get(); }
 }
