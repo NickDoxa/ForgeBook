@@ -1,0 +1,23 @@
+{
+  "forgebook.chat.button.tooltip": "Ask ForgeBook",
+  "forgebook.chat.button.narration": "Open ForgeBook chat",
+  "forgebook.chat.title": "ForgeBook",
+  "forgebook.chat.empty.body": "Ask about a mod, an item, or what you're looking at.",
+  "forgebook.chat.input.placeholder": "Type your question\u2026",
+  "forgebook.chat.submit": "Ask",
+  "forgebook.chat.loading": "Thinking\u2026",
+  "forgebook.chat.screen_too_small": "Screen too small \u2014 increase resolution or lower GUI scale.",
+  "forgebook.error.transport.heading": "Connection hiccup",
+  "forgebook.error.transport.body": "The server couldn't reach the AI service. Try again in a moment.",
+  "forgebook.error.rate_limited.heading": "Slow down a sec",
+  "forgebook.error.rate_limited.body": "You're sending questions too fast. Try again in %ds.",
+  "forgebook.error.forbidden.heading": "Not allowed",
+  "forgebook.error.forbidden.body": "ForgeBook is OP-only on this server. Ask an operator to enable it for you.",
+  "forgebook.error.provider.heading": "AI service error",
+  "forgebook.error.provider.body": "The AI service returned an error. The server owner may need to check the logs.",
+  "forgebook.error.disabled.heading": "ForgeBook is turned off",
+  "forgebook.error.disabled.body": "A server operator has disabled ForgeBook. Try again later.",
+  "forgebook.error.overloaded.heading": "Server busy",
+  "forgebook.error.overloaded.body": "Too many questions in flight. Try again in a moment.",
+  "forgebook.error.no_server.body": "ForgeBook isn't installed on this server."
+}
