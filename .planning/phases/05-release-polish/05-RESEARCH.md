@@ -1020,43 +1020,43 @@ Phase 5 does not add new attack surface. It does, however, *publish* the securit
 
 **`security_enforcement` status:** not configured explicitly in `.planning/config.json`; treat as enabled. All threats above have standard mitigations in the outlined docs.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 ### Q1: Should Authorizer.Denied keep `humanReadable: String` or switch to `feedback: Component`?
 
 - What we know: All 4 Denied strings need translation; current type is `String`; consumers call `src.sendFailure(Component.literal(d.humanReadable()))`.
 - What's unclear: Test harness behavior of `Component.translatable(...).getString()` in JUnit (no loaded language pack).
-- Recommendation: **Probe in Wave 0** — write a 3-line test that calls `Component.translatable("forgebook.command.reload.success").getString()` and asserts it returns *something* (likely the key). If HIGH confidence, adopt Option C. If ambiguous, adopt Option A (explicit `translationKey + Object[] args` record fields).
+- RESOLVED: **Option A — split fields** (`record Denied(ErrorCode code, String humanReadable, Component feedback)`). The wire format constraint (ChatErrorPacket.humanReadable is `String` via `buf.writeUtf`) forbids Option C. Plan 05-04 implements this; see PATTERNS.md L?? for the finding.
 
 ### Q2: Does `/forgebook stats` output need i18n?
 
 - What we know: `StatsAccumulator.render()` returns a formatted multi-line table with English labels like "Requests", "Input tokens", "Top 10".
 - What's unclear: Is this considered "user-visible" per REL-02, or "administrator diagnostic" (labels acceptable in English)?
-- Recommendation: **Lean admin-diagnostic.** Treat the stats table like a log format — English is fine for admin output. A future v2 can i18n if contributions request it. Planner should confirm this choice in Phase 5 discussion.
+- RESOLVED: **Admin-diagnostic carve-out.** Plan 05-04 keeps `executeStats` on `Component.literal` (StatsAccumulator.render returns structured tabular text, treated like a log format). Future v2 can i18n if contributions request it.
 
 ### Q3: Should the RagItemPipeline's `Source: <url>` citation have a localized prefix?
 
 - What we know: CMD-07 test locks the literal string `"\n\nSource: " + url`. Changing it could break the test.
 - What's unclear: Whether REL-02 requires this (CMD-07 is an AI-OUTPUT-PREFIX, not a command-feedback string).
-- Recommendation: Two valid paths. (A) i18n the prefix to `forgebook.command.item.source_label` → `"\n\nSource: %s"`; update RagItemPipelineTest to assert on the key, not prose. (B) Treat `Source:` as a protocol literal (like `JSON` or `UTC`) that doesn't need translation. Decide in Phase 5 discussion; default to (A) for completeness.
+- RESOLVED: **Path A — i18n the prefix** via `forgebook.command.item.source_label` → `"\n\nSource: %s"`. Plan 05-04 updates RagItemPipelineTest to assert on the translation key, not the prose literal.
 
 ### Q4: Tagged v1.0.0 release + GitHub Release automation in scope?
 
 - What we know: ROADMAP Phase 5 SC-5 says "the built jar ... before first tagged release" — implying a tagged release IS in scope.
 - What's unclear: Does "first tagged release" mean `git tag v1.0.0` + manual GitHub Releases upload, or automated release-on-tag CI?
-- Recommendation: **`git tag v1.0.0` + manual `gh release create v1.0.0 build/libs/forgebook-1.0.0.jar`** is Phase 5 scope. CI release-on-tag automation is v2. Document in RELEASE-SMOKE.md Step 10 (new).
+- RESOLVED: **Manual tag + `gh release create`.** Plan 05-06's RELEASE-SMOKE.md Step 10 documents `git tag v1.0.0` + manual `gh release create v1.0.0 build/libs/forgebook-1.0.0.jar`. CI release-on-tag automation is v2.
 
 ### Q5: Does `build.gradle` need a version bump, or does `version = '0.1.0'` already count as "1.0" enough?
 
 - What we know: Current version is 0.1.0; ROADMAP implies a "1.0" release; `./gradlew build` produces `forgebook-0.1.0.jar`.
 - What's unclear: Is 0.x (semver pre-release) acceptable for "first tagged release", or must it be 1.0.0?
-- Recommendation: **Bump to 1.0.0.** A tagged v1.0.0 with a 0.1.0 jar is confusing. Bump `build.gradle#version = '1.0.0'` as part of REL-05 work. Discuss with operator in Phase 5 discuss-phase if semver fidelity is in question.
+- RESOLVED: **Bump to 1.0.0.** Plan 05-01 performs `build.gradle#version = '0.1.0'` → `'1.0.0'`; `mods.toml` auto-substitutes via `${file.jarVersion}`. Produces `forgebook-1.0.0.jar` for the tagged release.
 
 ### Q6: Does THIRD_PARTY_NOTICES need a Minecraft / Forge attribution section?
 
 - What we know: jsoup is correctly credited. Minecraft and Forge are platform dependencies, not bundled libraries.
 - What's unclear: Strict best practice for mod licensing attribution.
-- Recommendation: **Not required.** Mods run ON Minecraft/Forge; they don't bundle MC/Forge bytecode. A single sentence in README ("Built on Minecraft Forge; thanks to the Forge maintainers and the Parchment mapping project") is polite but not legally required. Include if time allows; optional.
+- RESOLVED: **Not required.** Plan 05-02 keeps THIRD_PARTY_NOTICES.md focused on bundled-library attribution (jsoup only). MC/Forge attribution is not a legal obligation for mods (no bundled bytecode). Optional README prose acknowledgment may be added by Plan 05-02's author if space permits.
 
 ## Validation Architecture
 
