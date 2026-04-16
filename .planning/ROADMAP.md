@@ -66,8 +66,8 @@
   - [x] 03-01-PLAN.md — Safety primitives: RequestKind + DispatchContext + KillSwitch + TokenBucket + RateLimiter + RateLimiterHolder (CMD-05, SAFE-02, SAFE-03)
   - [x] 03-02-PLAN.md — Observability: StatsAccumulator (per-UUID LongAdder + top-10 render) + RequestAuditLogger (named 'forgebook.audit' logger, fans out to stats) (SAFE-04, CMD-06)
   - [x] 03-03-PLAN.md — Authorizer + AiDispatcher integration: sealed Result, 4-step auth order, AiTurn.FinalReply Optional<Usage> extension, dispatch(DispatchContext) refactor with audit emission (SAFE-01, SAFE-02, SAFE-03, SAFE-04, SAFE-05)
-  - [ ] 03-04-PLAN.md — RagItemPipeline: SafeHttpFetcher -> scraper -> framing -> single-shot provider.chat with empty tools[] + 'Source:' citation (CMD-02, CMD-07)
-  - [ ] 03-05-PLAN.md — ChatRequestHandler SAFE-06 precheck: Authorizer before AiExecutor.submit on network thread, no queue consumption on denial (SAFE-06)
+  - [x] 03-04-PLAN.md — RagItemPipeline: SafeHttpFetcher -> scraper -> framing -> single-shot provider.chat with empty tools[] + 'Source:' citation (CMD-02, CMD-07)
+  - [x] 03-05-PLAN.md — ChatRequestHandler SAFE-06 precheck: Authorizer before AiExecutor.submit on network thread, no queue consumption on denial (SAFE-06)
   - [ ] 03-06a-PLAN.md — Wiring foundation: ForgebookReloadCommand.executeReload extraction + RateLimiterHolder.swap + ForgebookCommands tree registration (ask/item/reload/disable/enable/stats) + subcommand stub classes + ForgeBookMod listener swap + RateLimiterHolder seeding on ServerStartingEvent (CMD-01, CMD-04)
   - [ ] 03-06b-PLAN.md — Subcommand bodies: ItemSubcommand (held + argument forms, modURL lookup, RagItemPipeline submit) + AskSubcommand (AiDispatcher dispatch with server.execute hop) + AdminSubcommands (disable/enable/stats) + in-game smoke checkpoint (CMD-02, CMD-03, CMD-05, CMD-06)
 **UI hint**: no
