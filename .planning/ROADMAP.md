@@ -63,8 +63,8 @@
   4. Every AI request emits one structured log line (player UUID, request kind, est. input tokens, response tokens, latency, outcome) with zero message content logged by default; every error bubbled to a player falls into the fixed taxonomy `TRANSPORT`/`RATE_LIMITED`/`FORBIDDEN`/`PROVIDER`/`DISABLED` with no stack traces or raw provider payloads leaking to the client.
   5. Server-side packet handlers re-check OP permission on every packet arrival, so a spoofed client cannot bypass the gate by sending a request directly.
 **Plans**: 7 plans
-  - [ ] 03-01-PLAN.md — Safety primitives: RequestKind + DispatchContext + KillSwitch + TokenBucket + RateLimiter + RateLimiterHolder (CMD-05, SAFE-02, SAFE-03)
-  - [ ] 03-02-PLAN.md — Observability: StatsAccumulator (per-UUID LongAdder + top-10 render) + RequestAuditLogger (named 'forgebook.audit' logger, fans out to stats) (SAFE-04, CMD-06)
+  - [x] 03-01-PLAN.md — Safety primitives: RequestKind + DispatchContext + KillSwitch + TokenBucket + RateLimiter + RateLimiterHolder (CMD-05, SAFE-02, SAFE-03)
+  - [x] 03-02-PLAN.md — Observability: StatsAccumulator (per-UUID LongAdder + top-10 render) + RequestAuditLogger (named 'forgebook.audit' logger, fans out to stats) (SAFE-04, CMD-06)
   - [ ] 03-03-PLAN.md — Authorizer + AiDispatcher integration: sealed Result, 4-step auth order, AiTurn.FinalReply Optional<Usage> extension, dispatch(DispatchContext) refactor with audit emission (SAFE-01, SAFE-02, SAFE-03, SAFE-04, SAFE-05)
   - [ ] 03-04-PLAN.md — RagItemPipeline: SafeHttpFetcher -> scraper -> framing -> single-shot provider.chat with empty tools[] + 'Source:' citation (CMD-02, CMD-07)
   - [ ] 03-05-PLAN.md — ChatRequestHandler SAFE-06 precheck: Authorizer before AiExecutor.submit on network thread, no queue consumption on denial (SAFE-06)
