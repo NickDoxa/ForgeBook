@@ -582,7 +582,7 @@ Concrete list of new/modified files. All new files live under `com.forgebook.cli
 | `src/main/java/com/forgebook/client/ClientSetup.java` | `init()` now also: (a) registers `InventoryButtonInjector` (mod bus — auto via `@EventBusSubscriber` annotation), (b) registers `SessionLifecycleListener` (forge bus — auto), (c) installs sinks into `ClientPacketSinks.replySink` and `ClientPacketSinks.errorSink` pointing at `ClientChatSession` methods |
 | `src/main/java/com/forgebook/network/packet/ChatResponsePacket.java` | `handleOnClient` body replaces log-with-TODO with: `var sink = ClientPacketSinks.replySink; if (sink != null) sink.accept(pkt.requestId(), pkt.reply());` |
 | `src/main/java/com/forgebook/network/packet/ChatErrorPacket.java` | same pattern with `errorSink.accept(pkt.requestId(), pkt.code(), pkt.humanReadable())` |
-| `src/main/resources/assets/forgebook/lang/en_us.json` | **new file** — Phase 4 declares all i18n keys from UI-SPEC §"Copywriting Contract" (22 keys covering button tooltip, title, placeholder, submit label, loading, every error heading+body, small-screen notice, disconnected notice). Phase 5 REL-02 extends coverage. |
+| `src/main/resources/assets/forgebook/lang/en_us.json` | **new file** — Phase 4 declares all i18n keys from UI-SPEC §"Copywriting Contract" (21 keys covering button tooltip/narration, title, empty-state, placeholder, submit label, loading, small-screen notice, every error heading+body, and no_server). Phase 5 REL-02 extends coverage. |
 
 ### New test files
 
@@ -671,27 +671,27 @@ The `@EventBusSubscriber` annotations on `InventoryButtonInjector` and `SessionL
 | A4 | `Screen.isPauseScreen()` is overridable (not final) and defaults to `true` in 1.20.1 | Pitfall 8 | Verified via Mojang-mapped Minecraft source convention; not re-verified here. If `InventoryScreen` somehow bypasses this (unlikely), integrated server pauses. Low risk; testable in live smoke. |
 | A5 | The `parent.render(graphics, INT_MAX, INT_MAX, partialTick)` trick to suppress parent tooltips is idiomatic | Screen Architecture Resolution | If parent uses `abs(mouseX - center) < radius` style tests that overflow, could produce surprising behavior. Safer fallback: subtract `panelWidth * 2` so the "mouse" is off-screen negative. Planner's call. Low risk. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `ClientPacketSinks` live under `com.forgebook.network.client` or inside `com.forgebook.client.session`?**
    - What we know: both keep SCAF-02 clean; both compile and run.
    - What's unclear: organizational preference only.
-   - Recommendation: `com.forgebook.network.client.ClientPacketSinks` — keeps the sink-interface neutral to its only producers (the two handlers in `network.packet`), and client-side consumers reach in from `ClientSetup`.
+   - RESOLVED: `com.forgebook.network.client.ClientPacketSinks` — keeps the sink-interface neutral to its only producers (the two handlers in `network.packet`), and client-side consumers reach in from `ClientSetup`. Plan 04-03 implements this.
 
 2. **Does `ChatPanelWidget` need `NarratableEntry` in addition to `AbstractWidget`?**
    - What we know: `AbstractWidget` already implements `NarratableEntry`. Screen-readers will call `updateWidgetNarration`.
    - What's unclear: message bubbles inside the panel — are they individually narrated, or only the panel as a whole?
-   - Recommendation: panel-as-a-whole for v1; per-message narration is UI polish for v2. UI-SPEC §"Accessibility" already accepts this shape.
+   - RESOLVED: panel-as-a-whole for v1; per-message narration is UI polish for v2. UI-SPEC §"Accessibility" already accepts this shape. Plan 04-04 implements the panel-as-a-whole override.
 
 3. **Should the small-screen fallback actually HIDE the input, or just show the "Screen too small" message?**
    - What we know: UI-SPEC says "no other widgets" when `< 240 × < 180`.
    - What's unclear: does "no other widgets" mean input widget is present-but-not-added, or the whole screen turns into a label?
-   - Recommendation: the whole screen becomes a label — do not `addRenderableWidget(input)` at all when below the floor. Much simpler; matches UI-SPEC.
+   - RESOLVED: the whole screen becomes a label — do not `addRenderableWidget(input)` at all when below the floor. Much simpler; matches UI-SPEC. Plan 04-05 implements the unconditional widget-suppression branch in `ChatScreen.init()`.
 
 4. **Chunked response — does any current Phase-2 agent reply actually exceed 32 KB?**
    - What we know: Haiku with default max_tokens = 1024 tokens ~= 4 KB text. At our current `max_tokens` default (check config) a single reply cannot exceed 8 KB under any realistic condition.
    - What's unclear: what happens if a future user bumps `max_tokens` to 8000? Then a reply of ~32 KB is conceivable.
-   - Recommendation: UI-D-14 defers this. Document the 32 KB cap in README (Phase 5 REL-03). Log a warn in `ChatResponsePacket.encode` if input would be truncated — Phase 1's writeUtf already throws `EncoderException` on overflow, which would land as a PROVIDER error on the client. Acceptable fail-safe.
+   - RESOLVED: UI-D-14 defers this. Document the 32 KB cap in README (Phase 5 REL-03). Log a warn in `ChatResponsePacket.encode` if input would be truncated — Phase 1's writeUtf already throws `EncoderException` on overflow, which would land as a PROVIDER error on the client. Acceptable fail-safe. Phase 4 does NOT wire `ChunkedPayload` assembly.
 
 ## Environment Availability
 
