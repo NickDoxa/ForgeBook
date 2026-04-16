@@ -29,6 +29,7 @@ import com.forgebook.safety.Authorizer;
 import com.forgebook.safety.RateLimiter;
 import com.forgebook.safety.RequestAuditLogger;
 
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -98,7 +99,8 @@ class AskSubcommandTest {
             authStatic.when(() -> Authorizer.authorize(
                 any(ConfigSnapshot.class), any(), any(RequestKind.class), any(RateLimiter.class)))
                 .thenReturn(new Authorizer.Denied(ErrorCode.DISABLED,
-                    "ForgeBook is temporarily disabled by an operator."));
+                    "ForgeBook is temporarily disabled by an operator.",
+                    Component.translatable("forgebook.command.denied.disabled")));
 
             int rc = AskSubcommand.executeInternal(
                 /* src */ null, /* player */ null, UUID_A, MSG,
@@ -112,6 +114,9 @@ class AskSubcommandTest {
             assertEquals(0, rc, "denied path must return 0");
             auditStatic.verify(() -> RequestAuditLogger.logDenied(
                 eq(UUID_A), eq(RequestKind.ASK), eq(ErrorCode.DISABLED), anyLong()), times(1));
+            // Phase 5 / REL-02: Denied path now passes Denied.humanReadable() to the
+            // failureSinkForTests for wire-compat assertions; the command surface itself
+            // receives Denied.feedback() as a Component.translatable.
             assertEquals("ForgeBook is temporarily disabled by an operator.", failureSink.last);
             assertEquals(0, executorCalls.get(), "SAFE-06: executor never touched on denial");
         }
@@ -205,12 +210,18 @@ class AskSubcommandTest {
                 /* src */ null, /* player */ null, UUID_A, MSG,
                 () -> snap,
                 () -> limiter,
-                dc -> new AiDispatcher.Error(ErrorCode.TRANSPORT, "Transient network issue. Try again."),
+                dc -> new AiDispatcher.Error(
+                    ErrorCode.TRANSPORT,
+                    "Transient network issue. Try again.",
+                    Component.translatable("forgebook.command.provider.transport")),
                 () -> exec,
                 Runnable::run,
                 p -> new DispatchContext(MSG, p, RequestKind.ASK));
 
             assertEquals(1, rc);
+            // Phase 5 / REL-02: Error.humanReadable() flows to the failure sink for
+            // wire-compat assertions; the command surface itself receives Error.feedback()
+            // as a Component.translatable.
             assertEquals("Transient network issue. Try again.", failureSink.last,
                 "Error.humanReadable must be forwarded to sendFailure");
             assertNull(successSink.last, "no success on Error path");

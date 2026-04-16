@@ -30,6 +30,7 @@ import com.forgebook.safety.RateLimiter;
 import com.forgebook.safety.RateLimiterHolder;
 import com.forgebook.safety.RequestAuditLogger;
 import com.forgebook.util.AiExecutor;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -95,7 +96,8 @@ class ChatRequestHandlerAuthorizerTest {
              MockedStatic<RateLimiterHolder> rlhStatic = mockStaticRateLimiter(limiter);
              MockedStatic<Authorizer> authStatic = mockStaticAuthorizer(
                  new Authorizer.Denied(ErrorCode.DISABLED,
-                     "ForgeBook is temporarily disabled by an operator."));
+                     "ForgeBook is temporarily disabled by an operator.",
+                     Component.translatable("forgebook.command.denied.disabled")));
              MockedStatic<RequestAuditLogger> auditStatic = org.mockito.Mockito.mockStatic(RequestAuditLogger.class);
              MockedStatic<AiExecutor> executorStatic = org.mockito.Mockito.mockStatic(AiExecutor.class)) {
 
@@ -128,7 +130,8 @@ class ChatRequestHandlerAuthorizerTest {
              MockedStatic<RateLimiterHolder> rlhStatic = mockStaticRateLimiter(limiter);
              MockedStatic<Authorizer> authStatic = mockStaticAuthorizer(
                  new Authorizer.Denied(ErrorCode.FORBIDDEN,
-                     "ForgeBook is OP-only on this server."));
+                     "ForgeBook is OP-only on this server.",
+                     Component.translatable("forgebook.command.denied.forbidden")));
              MockedStatic<RequestAuditLogger> auditStatic = org.mockito.Mockito.mockStatic(RequestAuditLogger.class);
              MockedStatic<AiExecutor> executorStatic = org.mockito.Mockito.mockStatic(AiExecutor.class)) {
 
@@ -154,7 +157,8 @@ class ChatRequestHandlerAuthorizerTest {
         try (MockedStatic<ConfigHolder> configStatic = mockStaticConfig(snap);
              MockedStatic<RateLimiterHolder> rlhStatic = mockStaticRateLimiter(limiter);
              MockedStatic<Authorizer> authStatic = mockStaticAuthorizer(
-                 new Authorizer.Denied(ErrorCode.RATE_LIMITED, retryMsg));
+                 new Authorizer.Denied(ErrorCode.RATE_LIMITED, retryMsg,
+                     Component.translatable("forgebook.command.denied.rate_limited", 12)));
              MockedStatic<RequestAuditLogger> auditStatic = org.mockito.Mockito.mockStatic(RequestAuditLogger.class);
              MockedStatic<AiExecutor> executorStatic = org.mockito.Mockito.mockStatic(AiExecutor.class)) {
 
@@ -239,7 +243,8 @@ class ChatRequestHandlerAuthorizerTest {
              MockedStatic<RateLimiterHolder> rlhStatic = mockStaticRateLimiter(limiter);
              MockedStatic<Authorizer> authStatic = mockStaticAuthorizer(
                  new Authorizer.Denied(ErrorCode.DISABLED,
-                     "ForgeBook is temporarily disabled by an operator."));
+                     "ForgeBook is temporarily disabled by an operator.",
+                     Component.translatable("forgebook.command.denied.disabled")));
              MockedStatic<RequestAuditLogger> auditStatic = org.mockito.Mockito.mockStatic(RequestAuditLogger.class);
              MockedStatic<AiExecutor> executorStatic = org.mockito.Mockito.mockStatic(AiExecutor.class)) {
 
@@ -266,7 +271,8 @@ class ChatRequestHandlerAuthorizerTest {
              MockedStatic<RateLimiterHolder> rlhStatic = mockStaticRateLimiter(limiter);
              MockedStatic<Authorizer> authStatic = mockStaticAuthorizer(
                  new Authorizer.Denied(ErrorCode.DISABLED,
-                     "ForgeBook is temporarily disabled by an operator."));
+                     "ForgeBook is temporarily disabled by an operator.",
+                     Component.translatable("forgebook.command.denied.disabled")));
              MockedStatic<RequestAuditLogger> auditStatic = org.mockito.Mockito.mockStatic(RequestAuditLogger.class);
              MockedStatic<AiExecutor> executorStatic = org.mockito.Mockito.mockStatic(AiExecutor.class)) {
 

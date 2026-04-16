@@ -101,7 +101,8 @@ class RagItemPipelineTest {
 
         RagItemPipeline.AuthFn deny = snap ->
             new Authorizer.Denied(ErrorCode.DISABLED,
-                "ForgeBook is temporarily disabled by an operator.");
+                "ForgeBook is temporarily disabled by an operator.",
+                net.minecraft.network.chat.Component.translatable("forgebook.command.denied.disabled"));
 
         RagItemPipeline.FetchFn fetch = uri -> {
             fetchCalls.incrementAndGet();

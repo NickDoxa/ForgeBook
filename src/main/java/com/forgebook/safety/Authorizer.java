@@ -5,6 +5,7 @@ import java.util.UUID;
 import com.forgebook.ai.RequestKind;
 import com.forgebook.config.ConfigSnapshot;
 import com.forgebook.network.packet.ChatErrorPacket.ErrorCode;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -50,8 +51,21 @@ public final class Authorizer {
     /** Caller proceeds to AiExecutor.submit(...). */
     public record Allowed() implements Result {}
 
-    /** Caller short-circuits with ChatErrorPacket(code, humanReadable) or sendFailure. */
-    public record Denied(ErrorCode code, String humanReadable) implements Result {}
+    /**
+     * Caller short-circuits with ChatErrorPacket(code, humanReadable) or sendFailure.
+     *
+     * <h3>Phase 5 (REL-02) — Option A split fields</h3>
+     * <ul>
+     *   <li>{@code humanReadable} — default-locale English fallback, preserved for
+     *       {@link com.forgebook.network.packet.ChatErrorPacket} wire encoding
+     *       ({@code buf.writeUtf}) and {@code RequestAuditLogger} fallback. NOT changed
+     *       to a Component to avoid breaking the SimpleChannel protocol version.</li>
+     *   <li>{@code feedback} — {@link Component#translatable(String, Object...)} carrying
+     *       the i18n key (+ optional args) for command-surface rendering. Consumed by
+     *       {@code AskSubcommand}, {@code ItemSubcommand}, and {@code RagItemPipeline}.</li>
+     * </ul>
+     */
+    public record Denied(ErrorCode code, String humanReadable, Component feedback) implements Result {}
 
     private Authorizer() {}
 
@@ -76,28 +90,37 @@ public final class Authorizer {
                             RateLimiter limiter) {
         // 1. Kill switch (cheapest check; beats every other denial)
         if (KillSwitch.isDisabled()) {
-            return new Denied(ErrorCode.DISABLED,
-                "ForgeBook is temporarily disabled by an operator.");
+            return new Denied(
+                ErrorCode.DISABLED,
+                "ForgeBook is temporarily disabled by an operator.",
+                Component.translatable("forgebook.command.denied.disabled"));
         }
 
         // 2. Null-sender (defensive — /execute as @e non-player contexts)
         if (uuid == null) {
-            return new Denied(ErrorCode.FORBIDDEN,
-                "Only players may invoke ForgeBook.");
+            return new Denied(
+                ErrorCode.FORBIDDEN,
+                "Only players may invoke ForgeBook.",
+                Component.translatable("forgebook.command.denied.not_player"));
         }
 
         // 3. OP gate
         if (snap.opOnly() && !isOp) {
-            return new Denied(ErrorCode.FORBIDDEN,
-                "ForgeBook is OP-only on this server.");
+            return new Denied(
+                ErrorCode.FORBIDDEN,
+                "ForgeBook is OP-only on this server.",
+                Component.translatable("forgebook.command.denied.forbidden"));
         }
 
         // 4. Rate limit (OPs bypass per SAFE-02)
         if (!isOp) {
             RateLimiter.Outcome outcome = limiter.tryAcquire(uuid);
             if (outcome instanceof RateLimiter.Limited l) {
-                return new Denied(ErrorCode.RATE_LIMITED,
-                    "Rate limit reached. Try again in " + l.retryAfterSeconds() + "s.");
+                return new Denied(
+                    ErrorCode.RATE_LIMITED,
+                    "Rate limit reached. Try again in " + l.retryAfterSeconds() + "s.",
+                    Component.translatable(
+                        "forgebook.command.denied.rate_limited", l.retryAfterSeconds()));
             }
         }
 

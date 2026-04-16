@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -84,10 +85,14 @@ class AiDispatcherTest {
         assertEquals("hello", reply.text());
         assertTrue(reply.truncated());
 
-        // Error(ErrorCode code, String humanReadable)
-        AiDispatcher.Error error = new AiDispatcher.Error(ErrorCode.PROVIDER, "Some error");
+        // Phase 5: Error(ErrorCode code, String humanReadable, Component feedback) — Option A split.
+        AiDispatcher.Error error = new AiDispatcher.Error(
+            ErrorCode.PROVIDER, "Some error",
+            Component.translatable("forgebook.command.provider_error"));
         assertEquals(ErrorCode.PROVIDER, error.code());
         assertEquals("Some error", error.humanReadable());
+        assertNotNull(error.feedback());
+        assertEquals("forgebook.command.provider_error", error.feedback().getString());
     }
 
     // ---- Test 3: INSTANCE is non-null ----
@@ -216,6 +221,7 @@ class AiDispatcherTest {
     }
 
     // ---- Tests 11-17: ProviderError.Kind → ErrorCode mapping ----
+    // Phase 5 / REL-02: each case also carries Component feedback with a translation key.
     @Test
     void test11_transport() {
         AiTurn.ProviderError err = new AiTurn.ProviderError(
@@ -225,6 +231,7 @@ class AiDispatcherTest {
         assertTrue(result.humanReadable().toLowerCase().contains("transient") ||
                    result.humanReadable().toLowerCase().contains("network"),
             "human readable should mention network issue: " + result.humanReadable());
+        assertEquals("forgebook.command.provider.transport", result.feedback().getString());
     }
 
     @Test
@@ -233,6 +240,7 @@ class AiDispatcherTest {
             AiTurn.ProviderError.Kind.PROVIDER, "provider err", Optional.empty());
         AiDispatcher.Error result = AiDispatcher.mapError(err);
         assertEquals(ErrorCode.PROVIDER, result.code());
+        assertEquals("forgebook.command.provider_error", result.feedback().getString());
     }
 
     @Test
@@ -241,6 +249,7 @@ class AiDispatcherTest {
             AiTurn.ProviderError.Kind.OVERLOADED, "busy", Optional.empty());
         AiDispatcher.Error result = AiDispatcher.mapError(err);
         assertEquals(ErrorCode.OVERLOADED, result.code());
+        assertEquals("forgebook.command.overloaded", result.feedback().getString());
     }
 
     @Test
@@ -249,6 +258,7 @@ class AiDispatcherTest {
             AiTurn.ProviderError.Kind.RATE_LIMITED, "rate", Optional.of(Duration.ofSeconds(5)));
         AiDispatcher.Error result = AiDispatcher.mapError(err);
         assertEquals(ErrorCode.RATE_LIMITED, result.code());
+        assertEquals("forgebook.command.provider.rate_limited", result.feedback().getString());
     }
 
     @Test
@@ -258,6 +268,7 @@ class AiDispatcherTest {
         AiDispatcher.Error result = AiDispatcher.mapError(err);
         assertEquals(ErrorCode.PROVIDER, result.code(),
             "NOT_IMPLEMENTED maps to PROVIDER error code");
+        assertEquals("forgebook.command.provider.not_implemented", result.feedback().getString());
     }
 
     @Test
@@ -267,6 +278,7 @@ class AiDispatcherTest {
         AiDispatcher.Error result = AiDispatcher.mapError(err);
         assertEquals(ErrorCode.PROVIDER, result.code(),
             "CIRCUIT_OPEN maps to PROVIDER error code");
+        assertEquals("forgebook.command.provider.circuit_open", result.feedback().getString());
     }
 
     @Test
@@ -278,6 +290,9 @@ class AiDispatcherTest {
             "ITERATION_CAP maps to PROVIDER error code");
         assertTrue(result.humanReadable().contains("6"),
             "humanReadable must mention iteration count: " + result.humanReadable());
+        // feedback toString contains the iteration_cap key and the parameterized arg.
+        assertTrue(result.feedback().toString().contains("forgebook.command.provider.iteration_cap"),
+            "feedback Component must reference iteration_cap key: " + result.feedback());
     }
 
     // ---- Tests 18-21: ProviderFactory ----

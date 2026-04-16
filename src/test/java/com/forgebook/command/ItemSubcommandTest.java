@@ -27,6 +27,7 @@ import com.forgebook.safety.Authorizer;
 import com.forgebook.safety.RateLimiter;
 import com.forgebook.safety.RequestAuditLogger;
 
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 
@@ -125,7 +126,8 @@ class ItemSubcommandTest {
             authStatic.when(() -> Authorizer.authorize(
                 any(ConfigSnapshot.class), any(), any(RequestKind.class), any(RateLimiter.class)))
                 .thenReturn(new Authorizer.Denied(ErrorCode.DISABLED,
-                    "ForgeBook is temporarily disabled by an operator."));
+                    "ForgeBook is temporarily disabled by an operator.",
+                    Component.translatable("forgebook.command.denied.disabled")));
 
             int rc = ItemSubcommand.executeInternal(
                 /* src */ null,
