@@ -42,7 +42,14 @@
   3. All four tools (`ListInstalledModsTool`, `FetchModDocsPageTool`, `WebSearchTool`, `GetModpackContextTool`) return valid results for their happy path and frame every fetched document as `<mod_doc trust="untrusted">...</mod_doc>` in the next model turn; oversized outputs are truncated with a visible marker rather than silently dropped.
   4. With `curseforge_modpack_id` set, the pre-rendered system prompt (built at `ServerStartedEvent`) contains the modpack name + description fetched exactly once at startup; with the ID missing, startup completes without error and the prompt degrades gracefully.
   5. A synthetic mod with empty `getModURL()` triggers the missing-docs fallback: `FetchModDocsPageTool` returns a structured "no docs" result and the agent follows up with `WebSearchTool`, producing a final answer that cites at least one source URL.
-**Plans**: TBD
+**Plans**: 7 plans
+  - [ ] 02-01-PLAN.md — Config extension: WebSearchProviderKind enum, MAX_TOKENS / WEB_SEARCH_PROVIDER / WEB_SEARCH_API_KEY fields, AI_MODEL default bump to claude-haiku-4-5, ApiKeyScrubFilter covers X-Subscription-Token
+  - [ ] 02-02-PLAN.md — Contracts & DTOs: AiProvider interface, sealed AiTurn (FinalReply/ToolUses/ProviderError), ChatRequest, Anthropic Gson DTOs (ClaudeRequest/Response/Message, ContentBlock, ToolDef, Usage, ClaudeError), Tool interface + ToolResult + ToolException
+  - [ ] 02-03-PLAN.md — Provider layer: ClaudeProvider (hand-rolled HttpClient + Gson, anthropic-version 2023-06-01), CircuitBreaker (5-fail / 5-min cooldown), RetryPolicy (3-retry / 30s cap / respects retry-after), HttpExecutor test seam, OpenAi + Ollama NOT_IMPLEMENTED stubs
+  - [ ] 02-04-PLAN.md — CurseForge integration: ModpackContext record, CurseForgeClient.fetch (x-api-key + Accept headers, 500-char summary cap), ModpackContextCache volatile holder, graceful degradation (CF-02)
+  - [ ] 02-05-PLAN.md — Tools & grounding: ModDocsScraper (8-step selector chain + denoise, D-16), PromptFraming (<mod_doc trust="untrusted"> nonce-tagged framing, 8000-char truncation per D-14), WebSearchAdapter interface + DuckDuckGoHtmlAdapter (default) + BraveSearchAdapter (fallback), all four tool impls, ToolRegistry
+  - [ ] 02-06-PLAN.md — Agent core: AgentLoop (6-iteration cap, parallel D-11, error-tolerant D-12), SystemPromptBuilder (pure build + buildAndCache orchestration), SystemPromptCache volatile holder, ScriptedAiProvider test seam
+  - [ ] 02-07-PLAN.md — Wiring & SC-5: AiDispatcher sealed Result + INSTANCE, ProviderFactory, ChatRequestHandler upgrade from echo to dispatch, ForgeBookMod ServerStartedEvent listener, ForgebookReloadCommand prompt rebuild, end-to-end SC-5 AgentLoopE2ETest
 **UI hint**: no
 
 ### Phase 3: Command Surface & Safety Controls
@@ -89,7 +96,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundations & Safe Egress | 0/5 | Not started | - |
-| 2. AI Engine & Grounding | 0/? | Not started | - |
+| 2. AI Engine & Grounding | 0/7 | Not started | - |
 | 3. Command Surface & Safety Controls | 0/? | Not started | - |
 | 4. In-Inventory Chat UI | 0/? | Not started | - |
 | 5. Release Polish | 0/? | Not started | - |
@@ -115,3 +122,4 @@
 
 ---
 *Roadmap created: 2026-04-14*
+*Last updated: 2026-04-15 after Phase 2 planning*
