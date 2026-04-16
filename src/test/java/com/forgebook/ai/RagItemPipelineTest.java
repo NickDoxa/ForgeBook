@@ -119,7 +119,10 @@ class RagItemPipelineTest {
         assertEquals(0, providerCalls.get(), "provider must not be constructed when auth denies");
         assertNull(feedback.lastSuccess, "no success reply on denial");
         assertNotNull(feedback.lastFailure, "denial must surface via sendFailure");
-        assertEquals("ForgeBook is temporarily disabled by an operator.", feedback.lastFailure);
+        // Phase 5 / REL-02: Denied.feedback carries Component.translatable. The test's
+        // RecordingFeedback uses the default sendFailureComponent impl which routes through
+        // Component.getString() → the translation KEY verbatim (no language pack loaded).
+        assertEquals("forgebook.command.denied.disabled", feedback.lastFailure);
 
         // StatsAccumulator.render() contains the aggregate line "total denied : <n>".
         String stats = StatsAccumulator.render();
@@ -151,10 +154,11 @@ class RagItemPipelineTest {
         assertEquals(0, fetchCalls.get(), "fetch must not be invoked when modURL is empty");
         assertEquals(0, providerCalls.get(), "provider must not be invoked when modURL is empty");
         assertNotNull(feedback.lastFailure, "empty modURL must surface via sendFailure");
-        assertTrue(feedback.lastFailure.contains("create"),
-            "failure message must name the modId: " + feedback.lastFailure);
-        assertTrue(feedback.lastFailure.contains("/forgebook ask"),
-            "failure message must steer user to /forgebook ask: " + feedback.lastFailure);
+        // Phase 5 / REL-02: sendFailureKey forwards the translation KEY (args dropped by default impl).
+        // The modId arg ("create") is wired into the en_us.json "%s" format at render time in production.
+        assertEquals("forgebook.command.item.no_docs_url", feedback.lastFailure);
+        assertEquals("create", feedback.lastFailureArgs.length > 0 ? feedback.lastFailureArgs[0] : null,
+            "modId must be passed as the first arg to Component.translatable");
 
         String stats = StatsAccumulator.render();
         assertTrue(stats.contains("total requests : 1"),
@@ -177,7 +181,8 @@ class RagItemPipelineTest {
             snap -> { providerCalls.incrementAndGet(); return scripted(); });
 
         assertEquals(0, providerCalls.get(), "provider must not be invoked on unsafe URL");
-        assertEquals("Could not fetch mod documentation. Try again later.", feedback.lastFailure);
+        // Phase 5 / REL-02: sendFailureKey forwards the translation KEY to the test sink.
+        assertEquals("forgebook.command.item.fetch_failed", feedback.lastFailure);
         assertNull(feedback.lastSuccess);
 
         String stats = StatsAccumulator.render();
@@ -201,7 +206,8 @@ class RagItemPipelineTest {
             snap -> { providerCalls.incrementAndGet(); return scripted(); });
 
         assertEquals(0, providerCalls.get(), "provider must not be invoked on IOException");
-        assertEquals("Could not fetch mod documentation. Try again later.", feedback.lastFailure);
+        // Phase 5 / REL-02: sendFailureKey forwards the translation KEY to the test sink.
+        assertEquals("forgebook.command.item.fetch_failed", feedback.lastFailure);
     }
 
     // ================================================================================
@@ -231,8 +237,11 @@ class RagItemPipelineTest {
         AiDispatcher.Error expected = AiDispatcher.mapError(
             new AiTurn.ProviderError(
                 AiTurn.ProviderError.Kind.TRANSPORT, "upstream 503", Optional.empty()));
-        assertEquals(expected.humanReadable(), feedback.lastFailure,
-            "failure text must equal AiDispatcher.mapError(...).humanReadable()");
+        // Phase 5 / REL-02: sendFailureComponent default impl stringifies via
+        // Component.getString() → the translation key verbatim (no lang pack).
+        assertEquals(expected.feedback().getString(), feedback.lastFailure,
+            "failure text must equal AiDispatcher.mapError(...).feedback().getString()");
+        assertEquals("forgebook.command.provider.transport", feedback.lastFailure);
         assertEquals(ErrorCode.TRANSPORT, expected.code());
 
         String stats = StatsAccumulator.render();
@@ -314,10 +323,18 @@ class RagItemPipelineTest {
     // Helpers
     // ================================================================================
 
-    /** Pure-Java Feedback stub that records what the pipeline sent. */
+    /**
+     * Pure-Java Feedback stub that records what the pipeline sent.
+     *
+     * <p>Phase 5 / REL-02: overrides {@code sendFailureKey} explicitly so the args
+     * array is captured alongside the key — the Feedback default impl would drop
+     * args by routing to {@code sendFailure(key)}, which loses the parameterized
+     * context needed for the no_docs_url modId assertion.
+     */
     private static final class RecordingFeedback implements RagItemPipeline.Feedback {
         String lastSuccess;
         String lastFailure;
+        Object[] lastFailureArgs = new Object[0];
         final List<String> allMessages = new ArrayList<>();
 
         @Override public void sendSuccess(String text) {
@@ -328,6 +345,14 @@ class RagItemPipelineTest {
             lastFailure = text;
             allMessages.add("FAILURE: " + text);
         }
+        @Override public void sendFailureKey(String key, Object... args) {
+            lastFailure = key;
+            lastFailureArgs = args == null ? new Object[0] : args;
+            allMessages.add("FAILURE_KEY: " + key + " args=" + java.util.Arrays.toString(args));
+        }
+        // sendFailureComponent uses the default impl (feedback.getString()) which returns
+        // the translation key verbatim in the JUnit env — the assertion on lastFailure
+        // (key string) works without an explicit override.
     }
 
     /** AuthFn that always allows. */
