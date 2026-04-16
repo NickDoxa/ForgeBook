@@ -59,13 +59,15 @@ class AiExecutorRejectionTest {
         ExecutorService pool = AiExecutor.get();
 
         // Block all 4 workers on a latch that we never release until test end.
+        // Swallow IE without re-interrupting — re-interrupting causes the next queued
+        // task's await() to throw immediately, cascading a drain across the queue.
         CountDownLatch block = new CountDownLatch(1);
         for (int i = 0; i < 4; i++) {
-            pool.submit(() -> { try { block.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); } });
+            pool.submit(() -> { try { block.await(); } catch (InterruptedException ignored) { } });
         }
         // Fill the 64-slot queue.
         for (int i = 0; i < 64; i++) {
-            pool.submit(() -> { try { block.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); } });
+            pool.submit(() -> { try { block.await(); } catch (InterruptedException ignored) { } });
         }
         // 69th submission → AbortPolicy throws.
         RejectedExecutionException ree = assertThrows(

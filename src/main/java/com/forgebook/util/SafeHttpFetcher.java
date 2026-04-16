@@ -75,24 +75,27 @@ public final class SafeHttpFetcher {
             conn.setSSLSocketFactory(new SniSocketFactory(host));
             conn.setHostnameVerifier(new OriginalHostVerifier(host));
 
+            int code;
+            String ctHeader;
             try {
                 conn.connect();
+                code = conn.getResponseCode();
+
+                if (code >= 300 && code < 400) {
+                    String loc = conn.getHeaderField("Location");
+                    conn.disconnect();
+                    if (loc == null) throw new UnsafeUrlException(
+                        UnsafeUrlException.Reason.REDIRECT_LIMIT);
+                    current = current.resolve(loc);
+                    continue;  // re-validate on next loop iteration
+                }
+
+                ctHeader = conn.getHeaderField("Content-Type");
             } catch (SocketTimeoutException e) {
                 throw new UnsafeUrlException(UnsafeUrlException.Reason.TIMEOUT);
             }
-            int code = conn.getResponseCode();
-
-            if (code >= 300 && code < 400) {
-                String loc = conn.getHeaderField("Location");
-                conn.disconnect();
-                if (loc == null) throw new UnsafeUrlException(
-                    UnsafeUrlException.Reason.REDIRECT_LIMIT);
-                current = current.resolve(loc);
-                continue;  // re-validate on next loop iteration
-            }
 
             // Validate Content-Type
-            String ctHeader = conn.getHeaderField("Content-Type");
             String mime = ctHeader == null ? "" :
                 ctHeader.split(";")[0].trim().toLowerCase(Locale.ROOT);
             if (!CONTENT_ALLOWLIST.contains(mime))
@@ -135,10 +138,7 @@ public final class SafeHttpFetcher {
         private final SSLSocketFactory delegate;
         SniSocketFactory(String sniHost) {
             this.sniHost = sniHost;
-            try {
-                SSLContext ctx = SSLContext.getDefault();
-                this.delegate = ctx.getSocketFactory();
-            } catch (Exception e) { throw new RuntimeException(e); }
+            this.delegate = HttpsURLConnection.getDefaultSSLSocketFactory();
         }
         private SSLSocket withSni(Socket s) {
             SSLSocket ssl = (SSLSocket) s;
