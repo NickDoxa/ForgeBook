@@ -63,6 +63,24 @@ jobs:
             exit 1
           fi
 
+      - name: UI-08 reverse firewall - no forbidden imports in com.forgebook.client.{ui,session}
+        shell: bash
+        run: |
+          # UI-08 / Pitfall 5: com.forgebook.client.ui.* and
+          # com.forgebook.client.session.* MUST NOT import com.forgebook.ai.*,
+          # com.forgebook.safety.*, or com.forgebook.config.ApiKey. The client
+          # never holds or routes an API key; the chat UI only sends
+          # ChatRequestPacket and renders whatever the server replies.
+          HITS=$(grep -rnE --include='*.java' \
+              'import com\.forgebook\.(ai|safety)\.|import com\.forgebook\.config\.ApiKey' \
+              src/main/java/com/forgebook/client/ui/ \
+              src/main/java/com/forgebook/client/session/ 2>/dev/null || true)
+          if [ -n "$HITS" ]; then
+            echo "UI-08 violation: com.forgebook.client.{ui,session} imports forbidden package:"
+            echo "$HITS"
+            exit 1
+          fi
+
       - name: Build
         run: ./gradlew --no-daemon build
 
