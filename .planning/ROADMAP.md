@@ -62,13 +62,14 @@
   3. With `op_only = true`, a non-OP player calling `/forgebook item` receives a `FORBIDDEN` feedback message and no provider call is made; with `op_only = false`, the same player is bound by a per-UUID token bucket sized from `rate_limit_per_minute` — on exhaustion they receive a human-readable `RATE_LIMITED` message stating retry-after seconds, while OPs bypass entirely.
   4. Every AI request emits one structured log line (player UUID, request kind, est. input tokens, response tokens, latency, outcome) with zero message content logged by default; every error bubbled to a player falls into the fixed taxonomy `TRANSPORT`/`RATE_LIMITED`/`FORBIDDEN`/`PROVIDER`/`DISABLED` with no stack traces or raw provider payloads leaking to the client.
   5. Server-side packet handlers re-check OP permission on every packet arrival, so a spoofed client cannot bypass the gate by sending a request directly.
-**Plans**: 6 plans
+**Plans**: 7 plans
   - [ ] 03-01-PLAN.md — Safety primitives: RequestKind + DispatchContext + KillSwitch + TokenBucket + RateLimiter + RateLimiterHolder (CMD-05, SAFE-02, SAFE-03)
   - [ ] 03-02-PLAN.md — Observability: StatsAccumulator (per-UUID LongAdder + top-10 render) + RequestAuditLogger (named 'forgebook.audit' logger, fans out to stats) (SAFE-04, CMD-06)
   - [ ] 03-03-PLAN.md — Authorizer + AiDispatcher integration: sealed Result, 4-step auth order, AiTurn.FinalReply Optional<Usage> extension, dispatch(DispatchContext) refactor with audit emission (SAFE-01, SAFE-02, SAFE-03, SAFE-04, SAFE-05)
   - [ ] 03-04-PLAN.md — RagItemPipeline: SafeHttpFetcher -> scraper -> framing -> single-shot provider.chat with empty tools[] + 'Source:' citation (CMD-02, CMD-07)
   - [ ] 03-05-PLAN.md — ChatRequestHandler SAFE-06 precheck: Authorizer before AiExecutor.submit on network thread, no queue consumption on denial (SAFE-06)
-  - [ ] 03-06-PLAN.md — Command tree + wiring: ForgebookCommands (6 subcommands) + ItemSubcommand + AskSubcommand + AdminSubcommands + ForgebookReloadCommand.executeReload + ForgeBookMod listener swap + RateLimiterHolder seeding (CMD-01, CMD-02, CMD-03, CMD-04, CMD-06)
+  - [ ] 03-06a-PLAN.md — Wiring foundation: ForgebookReloadCommand.executeReload extraction + RateLimiterHolder.swap + ForgebookCommands tree registration (ask/item/reload/disable/enable/stats) + subcommand stub classes + ForgeBookMod listener swap + RateLimiterHolder seeding on ServerStartingEvent (CMD-01, CMD-04)
+  - [ ] 03-06b-PLAN.md — Subcommand bodies: ItemSubcommand (held + argument forms, modURL lookup, RagItemPipeline submit) + AskSubcommand (AiDispatcher dispatch with server.execute hop) + AdminSubcommands (disable/enable/stats) + in-game smoke checkpoint (CMD-02, CMD-03, CMD-05, CMD-06)
 **UI hint**: no
 
 ### Phase 4: In-Inventory Chat UI
@@ -103,7 +104,7 @@
 |-------|----------------|--------|-----------|
 | 1. Foundations & Safe Egress | 0/5 | Not started | - |
 | 2. AI Engine & Grounding | 0/7 | Not started | - |
-| 3. Command Surface & Safety Controls | 0/6 | Not started | - |
+| 3. Command Surface & Safety Controls | 0/7 | Not started | - |
 | 4. In-Inventory Chat UI | 0/? | Not started | - |
 | 5. Release Polish | 0/? | Not started | - |
 
@@ -128,4 +129,4 @@
 
 ---
 *Roadmap created: 2026-04-14*
-*Last updated: 2026-04-16 after Phase 3 planning*
+*Last updated: 2026-04-16 after Phase 3 planning (Plan 06 split into 06a + 06b per checker feedback)*
