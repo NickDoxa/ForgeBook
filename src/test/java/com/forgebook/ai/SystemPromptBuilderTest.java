@@ -7,7 +7,10 @@ import com.forgebook.tool.ToolException;
 import com.forgebook.tool.ToolRegistry;
 import com.forgebook.util.SafeHttpFetcher;
 import com.google.gson.JsonObject;
+import net.minecraftforge.forgespi.language.IConfigurable;
+import net.minecraftforge.forgespi.language.IModFileInfo;
 import net.minecraftforge.forgespi.language.IModInfo;
+import net.minecraftforge.forgespi.locating.ForgeFeature;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 
 import org.junit.jupiter.api.*;
@@ -110,7 +113,7 @@ class SystemPromptBuilderTest {
 
     @Test
     void test11_toolDescriptionsPresent() {
-        var tools = List.of(
+        Collection<Tool> tools = List.of(
             new TestTool("list_installed_mods", "Lists installed mods."),
             new TestTool("web_search", "Searches the web.")
         );
@@ -199,7 +202,7 @@ class SystemPromptBuilderTest {
         return com.forgebook.integration.ModpackContextCache.get();
     }
 
-    /** Inline IModInfo stub — no Mockito. */
+    /** Inline IModInfo stub — no Mockito. Implements all abstract methods. */
     private static IModInfo fakeMod(String modId, String displayName, String version, String url) {
         return new IModInfo() {
             @Override public String getModId() { return modId; }
@@ -215,9 +218,13 @@ class SystemPromptBuilderTest {
             @Override public String getDescription() { return ""; }
             @Override public Optional<URL> getUpdateURL() { return Optional.empty(); }
             @Override public Optional<String> getLogoFile() { return Optional.empty(); }
-            @Override public List<net.minecraftforge.forgespi.language.IModInfo.ModVersion> getDependencies() { return List.of(); }
-            @Override public net.minecraftforge.forgespi.language.IModFileInfo getOwningFile() { return null; }
+            @Override public boolean getLogoBlur() { return false; }
+            @Override public List<? extends IModInfo.ModVersion> getDependencies() { return List.of(); }
+            @Override public List<? extends ForgeFeature.Bound> getForgeFeatures() { return List.of(); }
+            @Override public IModFileInfo getOwningFile() { return null; }
             @Override public Map<String, Object> getModProperties() { return Map.of(); }
+            @Override public String getNamespace() { return modId; }
+            @Override public IConfigurable getConfig() { return null; }
         };
     }
 
