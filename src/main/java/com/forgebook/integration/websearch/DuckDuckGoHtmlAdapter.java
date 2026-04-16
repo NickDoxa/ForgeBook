@@ -45,9 +45,10 @@ public final class DuckDuckGoHtmlAdapter implements WebSearchAdapter {
 
     /**
      * Test-seam constructor — accepts any {@link HttpFetch} implementation.
-     * Do NOT use in production code outside of test packages.
+     * Public so cross-package test seams (e.g. WebSearchTool.withDdgFetch) can use it.
+     * Production callers should prefer {@link #DuckDuckGoHtmlAdapter(SafeHttpFetcher)}.
      */
-    DuckDuckGoHtmlAdapter(HttpFetch httpFetch) {
+    public DuckDuckGoHtmlAdapter(HttpFetch httpFetch) {
         this.httpFetch = httpFetch;
     }
 
