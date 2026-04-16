@@ -18,8 +18,9 @@ import org.apache.logging.log4j.message.SimpleMessage;
  * control (HttpClient, jsoup, Forge, Netty) that have no knowledge of ApiKey.
  *
  * Patterns (D-16):
- *   - Authorization header values
+ *   - Authorization header values (full value including multi-word Bearer tokens)
  *   - x-api-key header values
+ *   - X-Subscription-Token header values (Brave Search API — Phase 2 D-02)
  *   - sk-ant-[A-Za-z0-9_-]+ (Anthropic)
  *   - sk-proj-[A-Za-z0-9_-]+ (OpenAI project keys)
  *   - api_key=... query param
@@ -32,11 +33,14 @@ import org.apache.logging.log4j.message.SimpleMessage;
 public final class ApiKeyScrubFilter implements RewritePolicy {
 
     // Package-private for unit testing.
-    static final Pattern AUTHZ_HEADER   = Pattern.compile("(?i)(Authorization\\s*[:=]\\s*)\\S+");
-    static final Pattern XAPIKEY_HEADER = Pattern.compile("(?i)(x-api-key\\s*[:=]\\s*)\\S+");
-    static final Pattern SK_ANT         = Pattern.compile("sk-ant-[A-Za-z0-9_\\-]+");
-    static final Pattern SK_PROJ        = Pattern.compile("sk-proj-[A-Za-z0-9_\\-]+");
-    static final Pattern API_KEY_QP     = Pattern.compile("(?i)(api_key=)[^&\\s]+");
+    // Authorization header: match full value to end-of-line (Bearer tokens include spaces).
+    static final Pattern AUTHZ_HEADER           = Pattern.compile("(?i)(Authorization\\s*[:=]\\s*)[^\\r\\n,;]+");
+    static final Pattern XAPIKEY_HEADER         = Pattern.compile("(?i)(x-api-key\\s*[:=]\\s*)\\S+");
+    // Phase 2 (D-02, T-02-01-02): Brave Search uses X-Subscription-Token instead of x-api-key.
+    static final Pattern XSUBTOKEN_HEADER       = Pattern.compile("(?i)(X-Subscription-Token\\s*[:=]\\s*)\\S+");
+    static final Pattern SK_ANT                 = Pattern.compile("sk-ant-[A-Za-z0-9_\\-]+");
+    static final Pattern SK_PROJ                = Pattern.compile("sk-proj-[A-Za-z0-9_\\-]+");
+    static final Pattern API_KEY_QP             = Pattern.compile("(?i)(api_key=)[^&\\s]+");
 
     private ApiKeyScrubFilter() {}
 
@@ -64,6 +68,7 @@ public final class ApiKeyScrubFilter implements RewritePolicy {
         String out = s;
         out = AUTHZ_HEADER.matcher(out).replaceAll("$1<redacted>");
         out = XAPIKEY_HEADER.matcher(out).replaceAll("$1<redacted>");
+        out = XSUBTOKEN_HEADER.matcher(out).replaceAll("$1<redacted>");  // Phase 2 — Brave Search
         out = SK_ANT.matcher(out).replaceAll("sk-ant-<redacted>");
         out = SK_PROJ.matcher(out).replaceAll("sk-proj-<redacted>");
         out = API_KEY_QP.matcher(out).replaceAll("$1<redacted>");
