@@ -193,7 +193,7 @@ Design decisions that help compat:
 Requirements: JDK 17, the repo's Gradle wrapper (never a system Gradle).
 
 ```bash
-git clone https://github.com/Nick-Doxa/ForgeBook.git
+git clone https://github.com/NickDoxa/ForgeBook.git
 cd ForgeBook
 ./gradlew build                                       # → build/libs/forgebook-1.0.0.jar
 ./gradlew test                                        # full test suite
@@ -272,6 +272,6 @@ Yes — MIT-licensed. Keep `THIRD_PARTY_NOTICES.md` with the jar.
 
 ## Author
 
-**Nick Doxa** — [GitHub](https://github.com/Nick-Doxa) · [Issues](https://github.com/Nick-Doxa/ForgeBook/issues)
+**Nick Doxa** — [GitHub](https://github.com/NickDoxa) · [Issues](https://github.com/NickDoxa/ForgeBook/issues)
 
-Built for the simple satisfaction of being able to ask "what is this thing?" without tabbing out of Minecraft. If ForgeBook saves you from a wiki hunt, consider [opening an issue](https://github.com/Nick-Doxa/ForgeBook/issues) with a feature request or a bug — those are the contributions I value most.
+Built for the simple satisfaction of being able to ask "what is this thing?" without tabbing out of Minecraft. If ForgeBook saves you from a wiki hunt, consider [opening an issue](https://github.com/NickDoxa/ForgeBook/issues) with a feature request or a bug — those are the contributions I value most.

@@ -4,10 +4,10 @@ license="MIT"
 
 [[mods]]
 modId="forgebook"
-version="${file.jarVersion}"
+version="1.0.0"
 displayName="ForgeBook"
-displayURL="https://github.com/Nick-Doxa/ForgeBook"
-issueTrackerURL="https://github.com/Nick-Doxa/ForgeBook/issues"
+displayURL="https://github.com/NickDoxa/ForgeBook"
+issueTrackerURL="https://github.com/NickDoxa/ForgeBook/issues"
 logoFile="logo.png"
 credits="jsoup by Jonathan Hedley (MIT) — bundled as com.forgebook.shadow.jsoup"
 authors="Nick Doxa"
