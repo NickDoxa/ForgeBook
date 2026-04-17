@@ -5,6 +5,7 @@ import com.forgebook.ai.dto.ToolDef;
 import com.forgebook.ai.provider.ProviderFactory;
 import com.forgebook.config.ConfigHolder;
 import com.forgebook.config.ConfigSnapshot;
+import com.forgebook.integration.CurseForgeClient;
 import com.forgebook.integration.scraper.ModDocsScraper;
 import com.forgebook.integration.scraper.PromptFraming;
 import com.forgebook.network.packet.ChatErrorPacket.ErrorCode;
@@ -151,6 +152,9 @@ public final class RagItemPipeline {
             // Real OP gate / rate limit / kill switch consulted here in production.
             snap -> Authorizer.authorize(snap, player, kind, RateLimiterHolder.get()),
             uri -> new SafeHttpFetcher().fetch(uri),
+            // CurseForge description API — returns empty when URL isn't CF or key unset,
+            // which causes the pipeline to fall through to the generic SafeHttpFetcher path.
+            CurseForgeClient::fetchDescriptionBySlug,
             ProviderFactory::create
         );
     }
@@ -181,6 +185,7 @@ public final class RagItemPipeline {
                             ConfigSnapshot snap,
                             AuthFn authFn,
                             FetchFn fetch,
+                            CfDescFn cfDesc,
                             Function<ConfigSnapshot, AiProvider> providerFactory) {
         if (snap == null) {
             LOG.error("RagItemPipeline invoked before ConfigHolder seeded — this should be " +
@@ -218,37 +223,64 @@ public final class RagItemPipeline {
         }
 
         // 3. Fetch + scrape + frame — with per-URL cache to skip network+parse on repeat queries.
-        //    SafeHttpFetcher is still the SSRF-safe chokepoint — T-03-04-02.
+        //    CurseForge mod URLs are routed through the CF REST API when the operator has
+        //    set curseforge_api_key — api.curseforge.com returns the mod's HTML description
+        //    over an authenticated channel, bypassing the 403-by-default that the public
+        //    HTML page returns to non-browser user agents. On any failure (no key, no
+        //    search hit, non-200, parse error) the pipeline falls through to the generic
+        //    SafeHttpFetcher path so non-CF hosts (github, fandom, rtd, etc.) still work.
+        //    SafeHttpFetcher is still the SSRF-safe chokepoint for that fallback — T-03-04-02.
         final URL url = effectiveUrl.get();
         final String urlKey = url.toString();
         String framed = DOCS_CACHE.get(urlKey);
         if (framed == null) {
-            try {
-                SafeHttpFetcher.Result r = fetch.fetch(URI.create(urlKey));
-                String readable = ModDocsScraper.extractReadable(r.body(), urlKey);
-                // RAG-specific tighter truncation — keeps the prompt small so
-                // Haiku's first-token-latency stays short. The full TOOL_OUTPUT_CAP
-                // still applies to the tool-using agent loop.
-                if (readable.length() > RAG_SCRAPED_CAP) {
-                    readable = readable.substring(0, RAG_SCRAPED_CAP)
-                             + "\n[... truncated — full docs at " + urlKey + "]";
+            String readable = null;
+
+            // 3a. CurseForge API shortcut — only attempted for curseforge.com URLs with a key.
+            Optional<String> cfSlug = CurseForgeClient.extractSlugFromUrl(url);
+            if (cfSlug.isPresent() && !snap.curseforgeApiKey().raw().isBlank()) {
+                try {
+                    Optional<String> cfHtml = cfDesc.fetch(cfSlug.get(), snap);
+                    if (cfHtml.isPresent()) {
+                        readable = ModDocsScraper.extractReadable(cfHtml.get(), urlKey);
+                        LOG.info("RAG resolved {} via CurseForge API (slug={})", modId, cfSlug.get());
+                    }
+                } catch (Exception e) {
+                    LOG.debug("CurseForge API lookup failed for slug {}: {}", cfSlug.get(), e.toString());
+                    // fall through to SafeHttpFetcher
                 }
-                framed = PromptFraming.wrap(readable, urlKey);
-                // Simple bounded cache — clear oldest half when we hit the cap.
-                if (DOCS_CACHE.size() >= DOCS_CACHE_MAX) {
-                    DOCS_CACHE.keySet().stream().limit(DOCS_CACHE_MAX / 2)
-                        .forEach(DOCS_CACHE::remove);
-                }
-                DOCS_CACHE.put(urlKey, framed);
-            } catch (UnsafeUrlException | IOException e) {
-                // Do NOT log the framed body (T-03-04-04). Only modId + URL + exception class.
-                LOG.warn("RAG fetch failed for {} {}: {}", modId, url, e.toString());
-                if (uuid != null) {
-                    RequestAuditLogger.logFailure(uuid, kind, ErrorCode.TRANSPORT, 0, 0, elapsedMs(startNanos));
-                }
-                feedback.sendFailureKey("forgebook.command.item.fetch_failed");
-                return;
             }
+
+            // 3b. Generic HTTP fallback — covers non-CF hosts and CF URLs when no key is set.
+            if (readable == null) {
+                try {
+                    SafeHttpFetcher.Result r = fetch.fetch(URI.create(urlKey));
+                    readable = ModDocsScraper.extractReadable(r.body(), urlKey);
+                } catch (UnsafeUrlException | IOException e) {
+                    // Do NOT log the framed body (T-03-04-04). Only modId + URL + exception class.
+                    LOG.warn("RAG fetch failed for {} {}: {}", modId, url, e.toString());
+                    if (uuid != null) {
+                        RequestAuditLogger.logFailure(uuid, kind, ErrorCode.TRANSPORT, 0, 0, elapsedMs(startNanos));
+                    }
+                    feedback.sendFailureKey("forgebook.command.item.fetch_failed");
+                    return;
+                }
+            }
+
+            // RAG-specific tighter truncation — keeps the prompt small so
+            // Haiku's first-token-latency stays short. The full TOOL_OUTPUT_CAP
+            // still applies to the tool-using agent loop.
+            if (readable.length() > RAG_SCRAPED_CAP) {
+                readable = readable.substring(0, RAG_SCRAPED_CAP)
+                         + "\n[... truncated — full docs at " + urlKey + "]";
+            }
+            framed = PromptFraming.wrap(readable, urlKey);
+            // Simple bounded cache — clear oldest half when we hit the cap.
+            if (DOCS_CACHE.size() >= DOCS_CACHE_MAX) {
+                DOCS_CACHE.keySet().stream().limit(DOCS_CACHE_MAX / 2)
+                    .forEach(DOCS_CACHE::remove);
+            }
+            DOCS_CACHE.put(urlKey, framed);
         }
 
         // 4. Build a single-shot ChatRequest. EMPTY tools[] is the Pattern 3 anchor —
@@ -453,6 +485,16 @@ public final class RagItemPipeline {
     @FunctionalInterface
     interface FetchFn {
         SafeHttpFetcher.Result fetch(URI uri) throws UnsafeUrlException, IOException;
+    }
+
+    /**
+     * Test seam mirroring {@link CurseForgeClient#fetchDescriptionBySlug(String, ConfigSnapshot)}
+     * so tests can inject canned HTML (or an empty Optional to verify fallthrough) without
+     * hitting api.curseforge.com.
+     */
+    @FunctionalInterface
+    interface CfDescFn {
+        Optional<String> fetch(String slug, ConfigSnapshot snap);
     }
 
     /**

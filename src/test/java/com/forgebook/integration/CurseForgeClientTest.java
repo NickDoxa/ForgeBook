@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -116,5 +117,88 @@ class CurseForgeClientTest {
         Optional<ModpackContext> result = CurseForgeClient.fetch(snap);
         assertTrue(result.isEmpty(),
             "fetch must return Optional.empty() when curseforgeApiKey is blank");
+    }
+
+    // ----- extractSlugFromUrl tests -----
+
+    @Test
+    void extractSlug_fromWwwCurseforgeModUrl() throws Exception {
+        Optional<String> slug = CurseForgeClient.extractSlugFromUrl(
+            new URL("https://www.curseforge.com/minecraft/mc-mods/simply-swords"));
+        assertEquals(Optional.of("simply-swords"), slug);
+    }
+
+    @Test
+    void extractSlug_fromBareHostAndTrailingPath() throws Exception {
+        Optional<String> slug = CurseForgeClient.extractSlugFromUrl(
+            new URL("https://curseforge.com/minecraft/mc-mods/create/files"));
+        assertEquals(Optional.of("create"), slug);
+    }
+
+    @Test
+    void extractSlug_rejectsNonCurseforgeHost() throws Exception {
+        assertTrue(CurseForgeClient.extractSlugFromUrl(
+            new URL("https://github.com/foo/bar")).isEmpty());
+        assertTrue(CurseForgeClient.extractSlugFromUrl(
+            new URL("https://example.com/minecraft/mc-mods/simply-swords")).isEmpty());
+    }
+
+    @Test
+    void extractSlug_rejectsNonModPath() throws Exception {
+        assertTrue(CurseForgeClient.extractSlugFromUrl(
+            new URL("https://www.curseforge.com/minecraft/modpacks/all-the-mods-9")).isEmpty());
+        assertTrue(CurseForgeClient.extractSlugFromUrl(
+            new URL("https://www.curseforge.com/")).isEmpty());
+    }
+
+    // ----- parseSearchForFirstId tests -----
+
+    @Test
+    void parseSearchForFirstId_extractsFirstHitId() {
+        String body = "{\"data\":[{\"id\":241920,\"slug\":\"create\"},{\"id\":99,\"slug\":\"x\"}]}";
+        assertEquals(Optional.of(241920), CurseForgeClient.parseSearchForFirstId(body));
+    }
+
+    @Test
+    void parseSearchForFirstId_emptyArray_returnsEmpty() {
+        assertTrue(CurseForgeClient.parseSearchForFirstId("{\"data\":[]}").isEmpty());
+    }
+
+    @Test
+    void parseSearchForFirstId_malformed_returnsEmpty() {
+        assertTrue(CurseForgeClient.parseSearchForFirstId("not json").isEmpty());
+        assertTrue(CurseForgeClient.parseSearchForFirstId("{\"data\":null}").isEmpty());
+    }
+
+    // ----- parseDescription tests -----
+
+    @Test
+    void parseDescription_extractsHtmlString() {
+        String body = "{\"data\":\"<html><body><p>Hello</p></body></html>\"}";
+        assertEquals(Optional.of("<html><body><p>Hello</p></body></html>"),
+            CurseForgeClient.parseDescription(body));
+    }
+
+    @Test
+    void parseDescription_blankOrMissing_returnsEmpty() {
+        assertTrue(CurseForgeClient.parseDescription("{\"data\":\"\"}").isEmpty());
+        assertTrue(CurseForgeClient.parseDescription("{}").isEmpty());
+        assertTrue(CurseForgeClient.parseDescription("not json").isEmpty());
+    }
+
+    // ----- fetchDescriptionBySlug short-circuit -----
+
+    @Test
+    void fetchDescription_returnsEmptyWhenApiKeyBlank() {
+        ConfigSnapshot snap = snapshot(Optional.empty(), "");
+        assertTrue(CurseForgeClient.fetchDescriptionBySlug("simply-swords", snap).isEmpty(),
+            "fetchDescriptionBySlug must short-circuit when key is blank — no network call");
+    }
+
+    @Test
+    void fetchDescription_returnsEmptyOnBlankSlug() {
+        ConfigSnapshot snap = snapshot(Optional.empty(), "some-key");
+        assertTrue(CurseForgeClient.fetchDescriptionBySlug("", snap).isEmpty());
+        assertTrue(CurseForgeClient.fetchDescriptionBySlug(null, snap).isEmpty());
     }
 }

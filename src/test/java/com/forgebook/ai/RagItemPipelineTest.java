@@ -117,7 +117,7 @@ class RagItemPipelineTest {
         RagItemPipeline.runInternal(
             feedback, uuid, "create", "create:cogwheel",
             Optional.of(CREATE_URL), RequestKind.ITEM,
-            SNAP, deny, fetch,
+            SNAP, deny, fetch, NO_CF,
             snap -> { providerCalls.incrementAndGet(); return scripted(); });
 
         assertEquals(0, fetchCalls.get(), "fetch must not be invoked when auth denies");
@@ -153,7 +153,7 @@ class RagItemPipelineTest {
         RagItemPipeline.runInternal(
             feedback, uuid, "create", "create:cogwheel",
             Optional.<URL>empty(), RequestKind.ITEM,
-            SNAP, allow(), fetch,
+            SNAP, allow(), fetch, NO_CF,
             snap -> { providerCalls.incrementAndGet(); return scripted(); });
 
         assertEquals(0, fetchCalls.get(), "fetch must not be invoked when modURL is empty");
@@ -182,7 +182,7 @@ class RagItemPipelineTest {
         RagItemPipeline.runInternal(
             feedback, uuid, "create", "create:cogwheel",
             Optional.of(CREATE_URL), RequestKind.ITEM,
-            SNAP, allow(), fetch,
+            SNAP, allow(), fetch, NO_CF,
             snap -> { providerCalls.incrementAndGet(); return scripted(); });
 
         assertEquals(0, providerCalls.get(), "provider must not be invoked on unsafe URL");
@@ -207,7 +207,7 @@ class RagItemPipelineTest {
         RagItemPipeline.runInternal(
             feedback, uuid, "create", "create:cogwheel",
             Optional.of(CREATE_URL), RequestKind.ITEM,
-            SNAP, allow(), fetch,
+            SNAP, allow(), fetch, NO_CF,
             snap -> { providerCalls.incrementAndGet(); return scripted(); });
 
         assertEquals(0, providerCalls.get(), "provider must not be invoked on IOException");
@@ -234,7 +234,7 @@ class RagItemPipelineTest {
         RagItemPipeline.runInternal(
             feedback, uuid, "create", "create:cogwheel",
             Optional.of(CREATE_URL), RequestKind.ITEM,
-            SNAP, allow(), fetch, snap -> provider);
+            SNAP, allow(), fetch, NO_CF, snap -> provider);
 
         assertEquals(1, provider.callCount(), "provider must be called exactly once");
         assertTrue(provider.lastRequest().tools().isEmpty(),
@@ -273,7 +273,7 @@ class RagItemPipelineTest {
         RagItemPipeline.runInternal(
             feedback, uuid, "create", "create:cogwheel",
             Optional.of(CREATE_URL), RequestKind.ITEM,
-            SNAP, allow(), fetch, snap -> provider);
+            SNAP, allow(), fetch, NO_CF, snap -> provider);
 
         assertNotNull(feedback.lastSuccess, "happy path must call sendSuccess");
         assertNull(feedback.lastFailure, "happy path must not call sendFailure");
@@ -302,7 +302,7 @@ class RagItemPipelineTest {
         RagItemPipeline.runInternal(
             feedback, uuid, "create", "create:cogwheel",
             Optional.of(CREATE_URL), RequestKind.ITEM,
-            SNAP, allow(), fetch, snap -> provider);
+            SNAP, allow(), fetch, NO_CF, snap -> provider);
 
         // StatsAccumulator reflects logSuccess → recordSuccess exactly once,
         // with the Usage-supplied token counts (123 input, 45 output).
@@ -322,6 +322,117 @@ class RagItemPipelineTest {
         assertEquals(1, provider.callCount());
         assertEquals(0, provider.lastRequest().tools().size(),
             "Pattern 3: tools[] must be empty so stop_reason cannot be tool_use");
+    }
+
+    // ================================================================================
+    // Test 8: CurseForge URL + configured key → CF API used, SafeHttpFetcher NOT called.
+    // ================================================================================
+    @Test
+    void curseforge_url_with_key_uses_cf_api_and_skips_http_fetch() throws Exception {
+        URL cfUrl = new URL("https://www.curseforge.com/minecraft/mc-mods/simply-swords");
+        ConfigSnapshot cfSnap = new ConfigSnapshot(
+            AiProviderKind.ANTHROPIC, new ApiKey("k"), "claude-haiku-4-5-20251001", 2048,
+            Optional.empty(), new ApiKey("cf-key-set"),
+            false, 10, false,
+            WebSearchProviderKind.DUCKDUCKGO, new ApiKey(""), 1);
+
+        AtomicInteger cfCalls = new AtomicInteger();
+        AtomicInteger httpCalls = new AtomicInteger();
+        RagItemPipeline.CfDescFn cfDesc = (slug, snap) -> {
+            cfCalls.incrementAndGet();
+            assertEquals("simply-swords", slug, "slug must be extracted from the CF URL path");
+            return Optional.of("<html><body><article>Simply Swords adds new weapons.</article></body></html>");
+        };
+        RagItemPipeline.FetchFn fetch = uri -> {
+            httpCalls.incrementAndGet();
+            return new SafeHttpFetcher.Result("should-not-be-used", "text/html", uri);
+        };
+
+        Queue<AiTurn> q = new LinkedList<>();
+        q.add(new AiTurn.FinalReply("Use them in combat.", false, Optional.of(usage(10, 5))));
+        ScriptedAiProvider provider = new ScriptedAiProvider(q);
+
+        RagItemPipeline.runInternal(
+            feedback, uuid, "simplyswords", "simplyswords:katana",
+            Optional.of(cfUrl), RequestKind.ITEM,
+            cfSnap, allow(), fetch, cfDesc, snap -> provider);
+
+        assertEquals(1, cfCalls.get(), "CurseForge API must be called exactly once");
+        assertEquals(0, httpCalls.get(), "SafeHttpFetcher must NOT be called when CF API returns content");
+        assertNotNull(feedback.lastSuccess, "happy path — success reply expected");
+        assertTrue(feedback.lastSuccess.startsWith("Use them in combat."));
+    }
+
+    // ================================================================================
+    // Test 9: CurseForge URL + configured key, CF API returns empty → falls through to SafeHttpFetcher.
+    // ================================================================================
+    @Test
+    void curseforge_url_falls_through_to_http_when_cf_api_returns_empty() throws Exception {
+        URL cfUrl = new URL("https://www.curseforge.com/minecraft/mc-mods/simply-swords");
+        ConfigSnapshot cfSnap = new ConfigSnapshot(
+            AiProviderKind.ANTHROPIC, new ApiKey("k"), "claude-haiku-4-5-20251001", 2048,
+            Optional.empty(), new ApiKey("cf-key-set"),
+            false, 10, false,
+            WebSearchProviderKind.DUCKDUCKGO, new ApiKey(""), 1);
+
+        AtomicInteger cfCalls = new AtomicInteger();
+        AtomicInteger httpCalls = new AtomicInteger();
+        RagItemPipeline.CfDescFn cfDesc = (slug, snap) -> {
+            cfCalls.incrementAndGet();
+            return Optional.empty();  // simulate no hit / non-200 / missing key upstream
+        };
+        RagItemPipeline.FetchFn fetch = uri -> {
+            httpCalls.incrementAndGet();
+            return new SafeHttpFetcher.Result(
+                "<html><body><article>Fallback HTML content.</article></body></html>",
+                "text/html", uri);
+        };
+
+        Queue<AiTurn> q = new LinkedList<>();
+        q.add(new AiTurn.FinalReply("Reply text.", false, Optional.of(usage(10, 5))));
+        ScriptedAiProvider provider = new ScriptedAiProvider(q);
+
+        RagItemPipeline.runInternal(
+            feedback, uuid, "simplyswords", "simplyswords:katana",
+            Optional.of(cfUrl), RequestKind.ITEM,
+            cfSnap, allow(), fetch, cfDesc, snap -> provider);
+
+        assertEquals(1, cfCalls.get(), "CF API must be attempted once");
+        assertEquals(1, httpCalls.get(), "SafeHttpFetcher must be called as fallback");
+        assertNotNull(feedback.lastSuccess);
+    }
+
+    // ================================================================================
+    // Test 10: CurseForge URL WITHOUT configured key → CF API NOT called, straight to SafeHttpFetcher.
+    // ================================================================================
+    @Test
+    void curseforge_url_without_key_skips_cf_api() throws Exception {
+        URL cfUrl = new URL("https://www.curseforge.com/minecraft/mc-mods/simply-swords");
+        // SNAP has blank curseforgeApiKey — should short-circuit CF API.
+        AtomicInteger cfCalls = new AtomicInteger();
+        AtomicInteger httpCalls = new AtomicInteger();
+        RagItemPipeline.CfDescFn cfDesc = (slug, snap) -> {
+            cfCalls.incrementAndGet();
+            return Optional.of("<html>unused</html>");
+        };
+        RagItemPipeline.FetchFn fetch = uri -> {
+            httpCalls.incrementAndGet();
+            return new SafeHttpFetcher.Result(
+                "<html><body><article>Direct fetch content.</article></body></html>",
+                "text/html", uri);
+        };
+
+        Queue<AiTurn> q = new LinkedList<>();
+        q.add(new AiTurn.FinalReply("r", false, Optional.of(usage(1, 1))));
+        ScriptedAiProvider provider = new ScriptedAiProvider(q);
+
+        RagItemPipeline.runInternal(
+            feedback, uuid, "simplyswords", "simplyswords:katana",
+            Optional.of(cfUrl), RequestKind.ITEM,
+            SNAP, allow(), fetch, cfDesc, snap -> provider);
+
+        assertEquals(0, cfCalls.get(), "CF API must NOT be called when api key is blank");
+        assertEquals(1, httpCalls.get(), "SafeHttpFetcher must be the only fetch path");
     }
 
     // ================================================================================
@@ -364,6 +475,9 @@ class RagItemPipelineTest {
     private static RagItemPipeline.AuthFn allow() {
         return snap -> new Authorizer.Allowed();
     }
+
+    /** CfDescFn that always reports "no CurseForge hit" — the default for non-CF tests. */
+    private static final RagItemPipeline.CfDescFn NO_CF = (slug, snap) -> Optional.empty();
 
     /** Empty-provider factory for branches that should never call the provider. */
     private static AiProvider scripted() {
