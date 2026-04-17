@@ -31,3 +31,5 @@ forge*changelog.txt
 forgebook-server.toml
 # But allow fixture/example TOMLs under config/ (Phase-1 reserved fixtures dir)
 !config/forgebook-server.toml
+
+.claude
