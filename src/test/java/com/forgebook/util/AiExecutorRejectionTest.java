@@ -62,9 +62,24 @@ class AiExecutorRejectionTest {
         // Swallow IE without re-interrupting — re-interrupting causes the next queued
         // task's await() to throw immediately, cascading a drain across the queue.
         CountDownLatch block = new CountDownLatch(1);
+        // workersReady lets us confirm each of the 4 worker threads is actively
+        // running its task (and therefore holding a worker slot rather than
+        // sitting in the queue) before we start the 64-slot queue fill. Without
+        // this barrier, under CI CPU pressure the submission loop can outrun
+        // worker-thread startup, and the first few "worker tasks" can land in
+        // the queue instead — making the queue fill faster than 64 submits and
+        // triggering REE on line 70 instead of line 75. See CI run 24550535593.
+        CountDownLatch workersReady = new CountDownLatch(4);
         for (int i = 0; i < 4; i++) {
-            pool.submit(() -> { try { block.await(); } catch (InterruptedException ignored) { } });
+            pool.submit(() -> {
+                workersReady.countDown();
+                try { block.await(); } catch (InterruptedException ignored) { }
+            });
         }
+        assertTrue(workersReady.await(5, TimeUnit.SECONDS),
+            "4 worker threads did not pick up their tasks within 5s");
+
+        // All 4 workers are now confirmed blocked on `block`. Queue is empty.
         // Fill the 64-slot queue.
         for (int i = 0; i < 64; i++) {
             pool.submit(() -> { try { block.await(); } catch (InterruptedException ignored) { } });
