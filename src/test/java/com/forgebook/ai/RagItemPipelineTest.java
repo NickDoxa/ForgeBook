@@ -84,6 +84,11 @@ class RagItemPipelineTest {
         uuid = UUID.randomUUID();
         SystemPromptCache.set("SYSTEM_PROMPT_MARKER");
         StatsAccumulator.resetForTests();
+        // Clear the RagItemPipeline docs cache so each test observes a fresh
+        // fetch codepath. Without this, a prior test's successful URL fetch
+        // is memoised and the current test's fetch stub is never invoked —
+        // masking failures the error-path tests expect to observe.
+        RagItemPipeline.clearDocsCacheForTests();
     }
 
     @AfterEach

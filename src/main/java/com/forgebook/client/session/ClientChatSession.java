@@ -67,7 +67,11 @@ public final class ClientChatSession {
      */
     public synchronized void append(UUID requestId, String reply) {
         if (pendingRequestId == null || !pendingRequestId.equals(requestId)) return;
-        bubbles.add(MessageBubble.assistant(reply));
+        // Claude replies are markdown. Minecraft's Font renders §-codes natively,
+        // so we translate **bold**/*italic*/`code`/# headings here once (at
+        // ingress) rather than on every render frame. See MarkdownToMinecraft.
+        String rendered = com.forgebook.client.ui.MarkdownToMinecraft.convert(reply);
+        bubbles.add(MessageBubble.assistant(rendered));
         pendingRequestId = null;
         pending = false;
     }

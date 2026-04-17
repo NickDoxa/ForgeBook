@@ -62,10 +62,19 @@ class RetryPolicyTest {
 
     @Test
     void test6_retryAfterOverridesExponentialBackoff() {
+        // The RAG-path DEFAULT policy uses a 5s maxDelay. retry-after SHOULD
+        // take precedence over the exponential schedule BUT still be clamped
+        // at maxDelay (we never want to sleep longer than the operator cap).
+        // With retryAfter=3s < 5s maxDelay, the literal 3s is used.
+        // With retryAfter=15s > 5s maxDelay, we clamp to 5s.
         RetryPolicy policy = RetryPolicy.DEFAULT;
-        Duration retryAfter = Duration.ofSeconds(15);
-        Duration result = policy.delay(0, Optional.of(retryAfter));
-        assertEquals(15_000L, result.toMillis(),
-            "When retry-after is present, delay must be min(retryAfter, maxDelay)");
+
+        Duration under = Duration.ofSeconds(3);
+        assertEquals(3_000L, policy.delay(0, Optional.of(under)).toMillis(),
+            "retry-after below maxDelay should be used as-is");
+
+        Duration over = Duration.ofSeconds(15);
+        assertEquals(5_000L, policy.delay(0, Optional.of(over)).toMillis(),
+            "retry-after above maxDelay should be clamped to maxDelay");
     }
 }

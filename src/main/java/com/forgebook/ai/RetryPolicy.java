@@ -10,10 +10,14 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public record RetryPolicy(int maxAttempts, Duration baseDelay, Duration maxDelay, double jitter) {
 
+    // One retry is enough for transient 5xx / timeouts — the second try succeeds
+    // or it doesn't, there's no systemic benefit to three attempts from a user's
+    // perspective. Lowering from 3 → 1 caps worst-case latency of a failing call
+    // from ~4 minutes (3 × 60s timeout + backoff) to ~65s (1 × 30s + backoff).
     public static final RetryPolicy DEFAULT = new RetryPolicy(
-        /* maxAttempts */ 3,
+        /* maxAttempts */ 1,
         /* baseDelay   */ Duration.ofSeconds(1),
-        /* maxDelay    */ Duration.ofSeconds(30),
+        /* maxDelay    */ Duration.ofSeconds(5),
         /* jitter      */ 0.25
     );
 

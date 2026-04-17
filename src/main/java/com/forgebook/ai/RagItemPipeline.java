@@ -87,6 +87,37 @@ public final class RagItemPipeline {
     private static final String FALLBACK_SYSTEM_PROMPT =
         "You are ForgeBook. Cite source URLs. Be concise.";
 
+    /**
+     * Item-specific max_tokens ceiling. Overrides the global snap.maxTokens() only
+     * when the global is higher — keeps /forgebook item responses snappy (Haiku
+     * generates ~50 tok/s; 1024 tokens = ~20s, 400 tokens = ~8s). Item answers
+     * rarely need more than a couple of paragraphs.
+     */
+    private static final int RAG_MAX_TOKENS = 400;
+
+    /**
+     * Per-request truncation of scraped doc text. Shorter input = shorter first-byte
+     * latency from Claude. PromptFraming.TOOL_OUTPUT_CAP (8000) stays intact for the
+     * tool-using agent loop; the RAG single-shot path uses this tighter cap.
+     */
+    private static final int RAG_SCRAPED_CAP = 3_000;
+
+    /**
+     * Scraped + framed document cache, keyed by canonical URL string. Hitting the
+     * cache on the 2nd through Nth item query against the same mod skips both the
+     * network fetch (~1-5s) AND the jsoup parse (~100ms-1s). Users typically browse
+     * many items from the same mod in succession, so this is a huge UX win.
+     *
+     * <p>Bounded at {@link #DOCS_CACHE_MAX} entries with simple first-insertion
+     * eviction — no weighted LRU needed at this scale. ConcurrentHashMap is safe
+     * for the AiExecutor thread pool.
+     */
+    private static final java.util.concurrent.ConcurrentHashMap<String, String> DOCS_CACHE =
+        new java.util.concurrent.ConcurrentHashMap<>();
+    private static final int DOCS_CACHE_MAX = 32;
+
+    static void clearDocsCacheForTests() { DOCS_CACHE.clear(); }
+
     private RagItemPipeline() {}
 
     // ------------------------------------------------------------------
@@ -171,41 +202,66 @@ public final class RagItemPipeline {
             return;
         }
 
-        // 2. No docs URL → PROVIDER failure. User is directed to /forgebook ask for web search.
-        if (modURL.isEmpty()) {
-            if (uuid != null) {
-                RequestAuditLogger.logFailure(uuid, kind, ErrorCode.PROVIDER, 0, 0, elapsedMs(startNanos));
+        // 2. No docs URL → try web search as a last resort if the operator enabled it.
+        //    Otherwise surface the no-docs message and let the user try /forgebook ask.
+        Optional<URL> effectiveUrl = modURL;
+        if (effectiveUrl.isEmpty()) {
+            effectiveUrl = tryWebSearchForDocUrl(modId, itemId, snap);
+            if (effectiveUrl.isEmpty()) {
+                if (uuid != null) {
+                    RequestAuditLogger.logFailure(uuid, kind, ErrorCode.PROVIDER, 0, 0, elapsedMs(startNanos));
+                }
+                feedback.sendFailureKey("forgebook.command.item.no_docs_url", modId);
+                return;
             }
-            feedback.sendFailureKey("forgebook.command.item.no_docs_url", modId);
-            return;
+            LOG.info("RAG using web-search-resolved URL for {} {}: {}", modId, itemId, effectiveUrl.get());
         }
 
-        // 3. Fetch + scrape + frame (SafeHttpFetcher is the SSRF-safe chokepoint — T-03-04-02).
-        final URL url = modURL.get();
-        final String framed;
-        try {
-            SafeHttpFetcher.Result r = fetch.fetch(URI.create(url.toString()));
-            String readable = ModDocsScraper.extractReadable(r.body(), url.toString());
-            framed = PromptFraming.wrap(readable, url.toString());
-        } catch (UnsafeUrlException | IOException e) {
-            // Do NOT log the framed body (T-03-04-04). Only modId + URL + exception class.
-            LOG.warn("RAG fetch failed for {} {}: {}", modId, url, e.toString());
-            if (uuid != null) {
-                RequestAuditLogger.logFailure(uuid, kind, ErrorCode.TRANSPORT, 0, 0, elapsedMs(startNanos));
+        // 3. Fetch + scrape + frame — with per-URL cache to skip network+parse on repeat queries.
+        //    SafeHttpFetcher is still the SSRF-safe chokepoint — T-03-04-02.
+        final URL url = effectiveUrl.get();
+        final String urlKey = url.toString();
+        String framed = DOCS_CACHE.get(urlKey);
+        if (framed == null) {
+            try {
+                SafeHttpFetcher.Result r = fetch.fetch(URI.create(urlKey));
+                String readable = ModDocsScraper.extractReadable(r.body(), urlKey);
+                // RAG-specific tighter truncation — keeps the prompt small so
+                // Haiku's first-token-latency stays short. The full TOOL_OUTPUT_CAP
+                // still applies to the tool-using agent loop.
+                if (readable.length() > RAG_SCRAPED_CAP) {
+                    readable = readable.substring(0, RAG_SCRAPED_CAP)
+                             + "\n[... truncated — full docs at " + urlKey + "]";
+                }
+                framed = PromptFraming.wrap(readable, urlKey);
+                // Simple bounded cache — clear oldest half when we hit the cap.
+                if (DOCS_CACHE.size() >= DOCS_CACHE_MAX) {
+                    DOCS_CACHE.keySet().stream().limit(DOCS_CACHE_MAX / 2)
+                        .forEach(DOCS_CACHE::remove);
+                }
+                DOCS_CACHE.put(urlKey, framed);
+            } catch (UnsafeUrlException | IOException e) {
+                // Do NOT log the framed body (T-03-04-04). Only modId + URL + exception class.
+                LOG.warn("RAG fetch failed for {} {}: {}", modId, url, e.toString());
+                if (uuid != null) {
+                    RequestAuditLogger.logFailure(uuid, kind, ErrorCode.TRANSPORT, 0, 0, elapsedMs(startNanos));
+                }
+                feedback.sendFailureKey("forgebook.command.item.fetch_failed");
+                return;
             }
-            feedback.sendFailureKey("forgebook.command.item.fetch_failed");
-            return;
         }
 
         // 4. Build a single-shot ChatRequest. EMPTY tools[] is the Pattern 3 anchor —
         //    Anthropic cannot return stop_reason="tool_use" when tools is empty.
+        //    Cap max_tokens at RAG_MAX_TOKENS to keep interactive latency low.
         final String userMsg = String.format(RAG_USER_TEMPLATE, itemId, modId, framed);
         final String cachedPrompt = SystemPromptCache.get();
         final String systemPrompt = (cachedPrompt == null || cachedPrompt.isEmpty())
             ? FALLBACK_SYSTEM_PROMPT : cachedPrompt;
+        final int maxTokens = Math.min(snap.maxTokens(), RAG_MAX_TOKENS);
         ChatRequest req = new ChatRequest(
             snap.aiModel(),
-            snap.maxTokens(),
+            maxTokens,
             systemPrompt,
             List.of(ClaudeMessage.userText(userMsg)),
             List.of()
@@ -271,6 +327,49 @@ public final class RagItemPipeline {
 
     private static long elapsedMs(long startNanos) {
         return (System.nanoTime() - startNanos) / 1_000_000L;
+    }
+
+    /**
+     * Last-resort URL resolution via web search. Called only when the mod declares
+     * no displayURL, has no description-embedded URL, and no credits-embedded URL
+     * (i.e. all three tiers of {@code ItemSubcommand.DEFAULT_MOD_URL_LOOKUP}
+     * returned empty). Requires {@code enable_web_search = true} in config.
+     *
+     * <p>Issues a single web-search query — something like
+     * {@code "<modId> <itemId> minecraft mod wiki"} — and takes the first result's
+     * URL. Returns empty if web search is disabled, the adapter isn't configured,
+     * or no result comes back.
+     *
+     * <p>This is a deliberate trade-off: an extra HTTP round trip (~1-2s) vs
+     * telling the user "no docs available" when docs almost always DO exist on
+     * the public web. Disabled by default (operator opt-in).
+     */
+    private static Optional<URL> tryWebSearchForDocUrl(String modId, String itemId,
+                                                        ConfigSnapshot snap) {
+        if (!snap.enableWebSearch()) return Optional.empty();
+        try {
+            com.forgebook.integration.websearch.WebSearchAdapter adapter =
+                com.forgebook.integration.websearch.WebSearchAdapterFactory.create(snap);
+            if (adapter == null) return Optional.empty();
+            String query = modId + " " + itemId + " minecraft mod wiki";
+            java.util.List<com.forgebook.integration.websearch.SearchResult> results =
+                adapter.search(query, 3);
+            for (com.forgebook.integration.websearch.SearchResult r : results) {
+                try {
+                    URL u = java.net.URI.create(r.url()).toURL();
+                    // Skip obviously-bad fallbacks (social, auth-walled, etc.).
+                    String host = u.getHost() == null ? "" : u.getHost().toLowerCase();
+                    if (host.contains("discord") || host.contains("twitter.com")
+                        || host.contains("x.com") || host.contains("patreon")) continue;
+                    return Optional.of(u);
+                } catch (java.net.MalformedURLException | IllegalArgumentException skip) {
+                    // try next candidate
+                }
+            }
+        } catch (Throwable t) {
+            LOG.debug("Web-search fallback failed for {} {}: {}", modId, itemId, t.toString());
+        }
+        return Optional.empty();
     }
 
     /** Crude token estimate used when {@code AiTurn.FinalReply.usage()} is absent: 1 token ~= 4 chars. */

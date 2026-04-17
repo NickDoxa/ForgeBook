@@ -47,7 +47,11 @@ public final class ClaudeProvider implements AiProvider {
     // Pinned constants (D-07, RESEARCH §1.1).
     private static final String ANTHROPIC_VERSION = "2023-06-01";
     private static final URI ENDPOINT = URI.create("https://api.anthropic.com/v1/messages");
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
+    // 30s timeout is plenty for Haiku/Sonnet generation of up to a few hundred
+    // tokens. The old 60s + 3 retries + backoff could stretch a single failed
+    // call into ~4 minutes — unacceptable for an interactive /forgebook item
+    // command. 30s × at most 1 retry bounds worst-case latency at ~65s.
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
 
     private final Gson gson = new Gson();
     private final HttpExecutor http;
