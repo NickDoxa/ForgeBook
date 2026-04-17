@@ -61,8 +61,11 @@ public final class ForgebookServerConfig {
         b.comment("Access control and cost guardrails.").push("access");
         OP_ONLY = b.comment("When true, only server OPs may call the AI pipeline. Default true.")
                    .define("op_only", true);
-        RATE_LIMIT_PER_MINUTE = b.comment("Per-player request budget when op_only=false. OPs bypass.")
-                                 .defineInRange("rate_limit_per_minute", 5, 1, 240);
+        RATE_LIMIT_PER_MINUTE = b.comment(
+                                    "Per-player request budget when op_only=false. OPs always bypass.",
+                                    "Default 30 = one request every 2 seconds sustained, with bucket-burst of 30.",
+                                    "Chat UI is interactive and conversational — 5/min choked users after 5 messages.")
+                                 .defineInRange("rate_limit_per_minute", 30, 1, 240);
         ENABLE_WEB_SEARCH = b.comment("Expose the web-search tool to the agent. Phase 2+ feature.")
                              .define("enable_web_search", false);
         b.pop();

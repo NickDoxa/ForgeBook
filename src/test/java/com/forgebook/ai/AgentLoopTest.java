@@ -252,15 +252,16 @@ class AgentLoopTest {
     }
 
     @Test
-    void test10_iterationCapSix() {
-        // Provider returns ToolUses on iters 0..5 (six consecutive tool uses)
+    void test10_iterationCap_exhausts() {
+        // Provider returns ToolUses every turn; AgentLoop must stop at MAX_ITERATIONS.
         String toolName = "cap_tool";
         ToolRegistry.injectForTests(new LinkedHashMap<>(Map.of(
             toolName, new StubTool(toolName, "ok", 0, null)
         )));
 
+        final int cap = AgentLoop.MAX_ITERATIONS;
         var turns = new LinkedList<AiTurn>();
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < cap; i++) {
             turns.add(new AiTurn.ToolUses(List.of(
                 new AiTurn.ToolUseBlock("id" + i, toolName, Map.of())
             )));
@@ -269,21 +270,23 @@ class AgentLoopTest {
         var loop = new AgentLoop(sap);
         AiTurn result = loop.run(initialRequest);
 
-        // After 6 provider calls all returning ToolUses, must return ITERATION_CAP
+        // After MAX_ITERATIONS provider calls all returning ToolUses, must return ITERATION_CAP
         assertInstanceOf(AiTurn.ProviderError.class, result);
         assertEquals(AiTurn.ProviderError.Kind.ITERATION_CAP, ((AiTurn.ProviderError) result).kind());
-        assertEquals(6, sap.callCount(), "Provider must be called exactly 6 times");
+        assertEquals(cap, sap.callCount(),
+            "Provider must be called exactly MAX_ITERATIONS times");
     }
 
     @Test
-    void test11_iterationCapAllows5ToolsThenFinalReply() {
+    void test11_iterationCap_allowsMaxMinusOneToolsThenFinalReply() {
         String toolName = "t";
         ToolRegistry.injectForTests(new LinkedHashMap<>(Map.of(
             toolName, new StubTool(toolName, "ok", 0, null)
         )));
 
+        final int cap = AgentLoop.MAX_ITERATIONS;
         var turns = new LinkedList<AiTurn>();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < cap - 1; i++) {
             turns.add(new AiTurn.ToolUses(List.of(
                 new AiTurn.ToolUseBlock("id" + i, toolName, Map.of())
             )));
@@ -296,7 +299,8 @@ class AgentLoopTest {
 
         assertInstanceOf(AiTurn.FinalReply.class, result);
         assertEquals("done", ((AiTurn.FinalReply) result).text());
-        assertEquals(6, sap.callCount(), "Provider must be called exactly 6 times");
+        assertEquals(cap, sap.callCount(),
+            "Provider must be called exactly MAX_ITERATIONS times (MAX-1 tool turns + 1 final)");
     }
 
     @Test

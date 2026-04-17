@@ -150,9 +150,10 @@ class AgentLoopE2ETest {
      * and returns ITERATION_CAP. AiDispatcher maps to Error(PROVIDER, "...6 iterations...").
      */
     @Test
-    void iterationCap_sixConsecutiveFetchFailsTriggersIterationCap() {
+    void iterationCap_consecutiveFetchFailsTriggersIterationCap() {
+        final int cap = AgentLoop.MAX_ITERATIONS;
         Queue<AiTurn> queue = new LinkedList<>();
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < cap; i++) {
             queue.add(new AiTurn.ToolUses(List.of(
                 new AiTurn.ToolUseBlock("t" + i, "fetch_mod_docs_page", Map.of("url", "")))));
         }
@@ -164,8 +165,8 @@ class AgentLoopE2ETest {
             "expected Error after iteration cap, got " + result);
         AiDispatcher.Error err = (AiDispatcher.Error) result;
         assertEquals(com.forgebook.network.packet.ChatErrorPacket.ErrorCode.PROVIDER, err.code());
-        assertTrue(err.humanReadable().contains("6"),
-            "humanReadable must mention the iteration cap: " + err.humanReadable());
+        assertTrue(err.humanReadable().contains(Integer.toString(cap)),
+            "humanReadable must mention the iteration cap (" + cap + "): " + err.humanReadable());
     }
 
     // ---- Test 4 (web_search disabled → tool fails gracefully, loop continues) ----

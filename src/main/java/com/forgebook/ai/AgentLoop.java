@@ -37,8 +37,15 @@ public final class AgentLoop {
     private static final Logger LOG = LogManager.getLogger();
     private static final Gson GSON = new Gson();
 
-    /** Hard cap on provider calls per request (AI-05). */
-    public static final int MAX_ITERATIONS = 6;
+    /**
+     * Hard cap on provider calls per request (AI-05).
+     * Lowered from 6 → 3 to bound interactive chat latency. A typical answer
+     * needs: (1) tool selection turn, (2) tool execution + final-answer turn.
+     * A third iteration handles the case where the first tool came back empty
+     * and the agent wants a second tool. Six iterations routinely pushed chat
+     * latency past the 30s UX budget.
+     */
+    public static final int MAX_ITERATIONS = 3;
 
     private final AiProvider provider;
 

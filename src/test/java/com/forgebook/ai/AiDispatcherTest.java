@@ -288,8 +288,10 @@ class AiDispatcherTest {
         AiDispatcher.Error result = AiDispatcher.mapError(err);
         assertEquals(ErrorCode.PROVIDER, result.code(),
             "ITERATION_CAP maps to PROVIDER error code");
-        assertTrue(result.humanReadable().contains("6"),
-            "humanReadable must mention iteration count: " + result.humanReadable());
+        final String capStr = Integer.toString(
+            com.forgebook.ai.AgentLoop.MAX_ITERATIONS);
+        assertTrue(result.humanReadable().contains(capStr),
+            "humanReadable must mention iteration count (" + capStr + "): " + result.humanReadable());
         // feedback toString contains the iteration_cap key and the parameterized arg.
         assertTrue(result.feedback().toString().contains("forgebook.command.provider.iteration_cap"),
             "feedback Component must reference iteration_cap key: " + result.feedback());
