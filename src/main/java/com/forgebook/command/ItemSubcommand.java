@@ -287,6 +287,8 @@ public final class ItemSubcommand {
         String modId = rl.getNamespace();
         String itemId = rl.toString();
         Optional<URL> modURL = modURLLookup.apply(modId);
+        LOG.info("item request uuid={} modId={} itemId={} modURL={} heldContext={}",
+            uuid, modId, itemId, modURL.map(URL::toString).orElse("<none>"), heldContext);
 
         // SAFE-06 (tick-thread mirror): authorize BEFORE any AiExecutor.submit.
         // D-14: single volatile load of ConfigSnapshot.
@@ -299,6 +301,7 @@ public final class ItemSubcommand {
         Authorizer.Result auth = Authorizer.authorize(
             snap, player, RequestKind.ITEM, limiterSupplier.get());
         if (auth instanceof Authorizer.Denied d) {
+            LOG.info("item denied uuid={} code={}", uuid, d.code());
             RequestAuditLogger.logDenied(uuid, RequestKind.ITEM, d.code(), startNanos);
             // Phase 5 / REL-02: Denied.feedback carries the Component.translatable.
             // humanReadable is the English fallback forwarded to the test sink.

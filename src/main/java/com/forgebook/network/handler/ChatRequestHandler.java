@@ -130,9 +130,15 @@ public final class ChatRequestHandler {
             return;
         }
         long startNanos = System.nanoTime();
+        java.util.UUID senderUuid = sender != null ? sender.getUUID() : null;
+        String playerName = sender != null ? sender.getName().getString() : "<no sender>";
+        LOG.info("chat request uuid={} player={} req_id={} msg_len={}",
+            senderUuid, playerName, pkt.requestId(),
+            pkt.message() == null ? 0 : pkt.message().length());
         Authorizer.Result auth = Authorizer.authorize(
             snap, sender, RequestKind.CHAT_UI, RateLimiterHolder.get());
         if (auth instanceof Authorizer.Denied d) {
+            LOG.info("chat denied uuid={} code={}", senderUuid, d.code());
             RequestAuditLogger.logDenied(
                 sender != null ? sender.getUUID() : null,
                 RequestKind.CHAT_UI, d.code(), startNanos);
@@ -158,9 +164,12 @@ public final class ChatRequestHandler {
                     enqueueWork.accept(() -> {
                         Object out;
                         if (result instanceof AiDispatcher.Reply r) {
+                            LOG.info("chat reply uuid={} truncated={} text_len={}",
+                                senderUuid, r.truncated(), r.text() == null ? 0 : r.text().length());
                             out = new ChatResponsePacket(pkt.requestId(), r.text());
                         } else {
                             AiDispatcher.Error err = (AiDispatcher.Error) result;
+                            LOG.info("chat error uuid={} code={}", senderUuid, err.code());
                             out = new ChatErrorPacket(pkt.requestId(), err.code(), err.humanReadable());
                         }
                         Consumer<Object> sink = responseSinkForTests;

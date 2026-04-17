@@ -199,6 +199,7 @@ public final class RagItemPipeline {
         // 1. Authorize (SAFE-01..SAFE-03, CMD-05 kill switch).
         Authorizer.Result auth = authFn.authorize(snap);
         if (auth instanceof Authorizer.Denied d) {
+            LOG.info("rag denied uuid={} modId={} itemId={} code={}", uuid, modId, itemId, d.code());
             if (uuid != null) {
                 RequestAuditLogger.logDenied(uuid, kind, d.code(), startNanos);
             }
@@ -211,15 +212,19 @@ public final class RagItemPipeline {
         //    Otherwise surface the no-docs message and let the user try /forgebook ask.
         Optional<URL> effectiveUrl = modURL;
         if (effectiveUrl.isEmpty()) {
+            LOG.info("rag no_doc_url uuid={} modId={} trying web_search={}",
+                uuid, modId, snap.enableWebSearch());
             effectiveUrl = tryWebSearchForDocUrl(modId, itemId, snap);
             if (effectiveUrl.isEmpty()) {
+                LOG.info("rag fail uuid={} modId={} reason=no_docs_url", uuid, modId);
                 if (uuid != null) {
                     RequestAuditLogger.logFailure(uuid, kind, ErrorCode.PROVIDER, 0, 0, elapsedMs(startNanos));
                 }
                 feedback.sendFailureKey("forgebook.command.item.no_docs_url", modId);
                 return;
             }
-            LOG.info("RAG using web-search-resolved URL for {} {}: {}", modId, itemId, effectiveUrl.get());
+            LOG.info("rag resolved_via_web_search uuid={} modId={} url={}",
+                uuid, modId, effectiveUrl.get());
         }
 
         // 3. Fetch + scrape + frame — with per-URL cache to skip network+parse on repeat queries.
@@ -233,17 +238,26 @@ public final class RagItemPipeline {
         final URL url = effectiveUrl.get();
         final String urlKey = url.toString();
         String framed = DOCS_CACHE.get(urlKey);
+        if (framed != null) {
+            LOG.info("rag docs_cache_hit uuid={} url={} framed_chars={}",
+                uuid, urlKey, framed.length());
+        }
         if (framed == null) {
             String readable = null;
 
             // 3a. CurseForge API shortcut — only attempted for curseforge.com URLs with a key.
             Optional<String> cfSlug = CurseForgeClient.extractSlugFromUrl(url);
             if (cfSlug.isPresent() && !snap.curseforgeApiKey().raw().isBlank()) {
+                LOG.info("rag fetch uuid={} source=cf_api slug={}", uuid, cfSlug.get());
                 try {
                     Optional<String> cfHtml = cfDesc.fetch(cfSlug.get(), snap);
                     if (cfHtml.isPresent()) {
                         readable = ModDocsScraper.extractReadable(cfHtml.get(), urlKey);
-                        LOG.info("RAG resolved {} via CurseForge API (slug={})", modId, cfSlug.get());
+                        LOG.info("rag fetch_ok uuid={} source=cf_api slug={} html_chars={} readable_chars={}",
+                            uuid, cfSlug.get(), cfHtml.get().length(), readable.length());
+                    } else {
+                        LOG.info("rag fetch_miss uuid={} source=cf_api slug={} — falling through to http",
+                            uuid, cfSlug.get());
                     }
                 } catch (Exception e) {
                     LOG.debug("CurseForge API lookup failed for slug {}: {}", cfSlug.get(), e.toString());
@@ -253,9 +267,12 @@ public final class RagItemPipeline {
 
             // 3b. Generic HTTP fallback — covers non-CF hosts and CF URLs when no key is set.
             if (readable == null) {
+                LOG.info("rag fetch uuid={} source=safe_http url={}", uuid, urlKey);
                 try {
                     SafeHttpFetcher.Result r = fetch.fetch(URI.create(urlKey));
                     readable = ModDocsScraper.extractReadable(r.body(), urlKey);
+                    LOG.info("rag fetch_ok uuid={} source=safe_http body_chars={} readable_chars={} content_type={}",
+                        uuid, r.body() == null ? 0 : r.body().length(), readable.length(), r.contentType());
                 } catch (UnsafeUrlException | IOException e) {
                     // Do NOT log the framed body (T-03-04-04). Only modId + URL + exception class.
                     LOG.warn("RAG fetch failed for {} {}: {}", modId, url, e.toString());
@@ -321,6 +338,9 @@ public final class RagItemPipeline {
                 .orElseGet(() -> estimateTokens(userMsg, systemPrompt));
             int outTok = fr.usage().map(u -> u.outputTokens)
                 .orElseGet(() -> estimateTokens(fr.text()));
+            LOG.info("rag reply uuid={} modId={} itemId={} in_tok={} out_tok={} truncated={} text_len={} latency_ms={}",
+                uuid, modId, itemId, inTok, outTok, fr.truncated(),
+                fr.text() == null ? 0 : fr.text().length(), latencyMs);
             if (uuid != null) {
                 RequestAuditLogger.logSuccess(uuid, kind, inTok, outTok, latencyMs);
             }
@@ -337,6 +357,8 @@ public final class RagItemPipeline {
             feedback.sendSuccess(reply);
         } else if (turn instanceof AiTurn.ProviderError err) {
             AiDispatcher.Error mapped = AiDispatcher.mapError(err); // reuse Phase 2 mapping
+            LOG.info("rag error uuid={} modId={} itemId={} kind={} code={} latency_ms={} detail={}",
+                uuid, modId, itemId, err.kind(), mapped.code(), latencyMs, err.message());
             if (uuid != null) {
                 RequestAuditLogger.logFailure(uuid, kind, mapped.code(), 0, 0, latencyMs);
             }
@@ -345,7 +367,8 @@ public final class RagItemPipeline {
         } else {
             // Defensive — a ToolUses return should be impossible with empty tools[],
             // but the sealed contract admits it, so surface as PROVIDER error with no user data.
-            LOG.warn("Provider returned ToolUses with empty tools[] — this should never happen.");
+            LOG.warn("rag unexpected uuid={} modId={} itemId={} — provider returned ToolUses with empty tools[]",
+                uuid, modId, itemId);
             if (uuid != null) {
                 RequestAuditLogger.logFailure(uuid, kind, ErrorCode.PROVIDER, 0, 0, latencyMs);
             }

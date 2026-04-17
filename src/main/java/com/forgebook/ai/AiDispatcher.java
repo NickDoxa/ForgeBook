@@ -140,6 +140,11 @@ public final class AiDispatcher {
             toolDefs
         );
 
+        String senderUuid = dc.sender() != null ? dc.sender().getUUID().toString() : "<no sender>";
+        LOG.info("dispatch start uuid={} kind={} provider={} model={} max_tokens={} tools={} msg_len={}",
+            senderUuid, dc.kind(), snap.aiProvider(), snap.aiModel(), snap.maxTokens(),
+            toolDefs.size(), dc.message() == null ? 0 : dc.message().length());
+
         AgentLoop loop = new AgentLoop(provider);
         AiTurn outcome;
         try {
@@ -159,6 +164,8 @@ public final class AiDispatcher {
         if (outcome instanceof AiTurn.FinalReply r) {
             int inTok = r.usage().map(u -> u.inputTokens).orElseGet(() -> estimateTokens(dc.message()));
             int outTok = r.usage().map(u -> u.outputTokens).orElseGet(() -> estimateTokens(r.text()));
+            LOG.info("dispatch reply uuid={} in_tok={} out_tok={} truncated={} latency_ms={}",
+                senderUuid, inTok, outTok, r.truncated(), latencyMs);
             if (dc.sender() != null) {
                 com.forgebook.safety.RequestAuditLogger.logSuccess(
                     dc.sender().getUUID(), dc.kind(), inTok, outTok, latencyMs);
@@ -166,6 +173,8 @@ public final class AiDispatcher {
             return new Reply(r.text(), r.truncated());
         } else if (outcome instanceof AiTurn.ProviderError err) {
             Error mapped = mapError(err);
+            LOG.info("dispatch error uuid={} kind={} code={} latency_ms={} detail={}",
+                senderUuid, err.kind(), mapped.code(), latencyMs, err.message());
             if (dc.sender() != null) {
                 com.forgebook.safety.RequestAuditLogger.logFailure(
                     dc.sender().getUUID(), dc.kind(), mapped.code(), 0, 0, latencyMs);

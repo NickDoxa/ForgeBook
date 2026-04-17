@@ -72,13 +72,25 @@ public final class AgentLoop {
                 initialReq.tools()
             );
 
+            long iterStart = System.nanoTime();
             AiTurn turn = provider.chat(req).join();
+            long iterLatencyMs = (System.nanoTime() - iterStart) / 1_000_000L;
 
             if (turn instanceof AiTurn.FinalReply r) {
+                LOG.info("agent iter={}/{} outcome=FinalReply text_len={} provider_latency_ms={}",
+                    iter + 1, MAX_ITERATIONS, r.text() == null ? 0 : r.text().length(), iterLatencyMs);
                 return r;
             } else if (turn instanceof AiTurn.ProviderError err) {
+                LOG.info("agent iter={}/{} outcome=ProviderError kind={} provider_latency_ms={}",
+                    iter + 1, MAX_ITERATIONS, err.kind(), iterLatencyMs);
                 return err;
             } else if (turn instanceof AiTurn.ToolUses uses) {
+                String toolNames = uses.uses().stream()
+                    .map(AiTurn.ToolUseBlock::name)
+                    .reduce((a, b) -> a + "," + b).orElse("");
+                LOG.info("agent iter={}/{} outcome=ToolUses tools=[{}] provider_latency_ms={}",
+                    iter + 1, MAX_ITERATIONS, toolNames, iterLatencyMs);
+
                 // Append assistant message with the tool_use blocks
                 messages.add(assistantMessage(uses));
 
@@ -126,7 +138,11 @@ public final class AgentLoop {
 
         try {
             JsonObject inputJson = GSON.toJsonTree(use.input()).getAsJsonObject();
+            long toolStart = System.nanoTime();
             String out = t.invoke(inputJson);
+            long toolMs = (System.nanoTime() - toolStart) / 1_000_000L;
+            LOG.info("tool {} ok out_chars={} latency_ms={}",
+                use.name(), out == null ? 0 : out.length(), toolMs);
             return toolResultSuccess(use.id(), out);
         } catch (ToolException te) {
             LOG.warn("tool {} failed: {}", use.name(), te.reason(), te);

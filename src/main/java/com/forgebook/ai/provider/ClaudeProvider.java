@@ -92,16 +92,30 @@ public final class ClaudeProvider implements AiProvider {
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build();
 
+        int messageCount = req.messages() == null ? 0 : req.messages().size();
+        int toolCount = req.tools() == null ? 0 : req.tools().size();
+        LOG.info("anthropic request model={} max_tokens={} messages={} tools={} body_bytes={}",
+            req.model(), req.maxTokens(), messageCount, toolCount, body.length());
+
         AiTurn lastError = null;
         for (int attempt = 0; attempt <= retry.maxAttempts(); attempt++) {
+            long attemptStart = System.nanoTime();
             try {
                 HttpResponse<String> resp = http.send(httpReq);
                 int status = resp.statusCode();
+                long attemptMs = (System.nanoTime() - attemptStart) / 1_000_000L;
 
                 if (status == 200) {
+                    LOG.info("anthropic response status=200 attempt={}/{} body_bytes={} latency_ms={}",
+                        attempt + 1, retry.maxAttempts() + 1,
+                        resp.body() == null ? 0 : resp.body().length(), attemptMs);
                     breaker.recordSuccess();
                     return parseResponse(resp.body());
                 }
+
+                LOG.info("anthropic response status={} attempt={}/{} body_bytes={} latency_ms={}",
+                    status, attempt + 1, retry.maxAttempts() + 1,
+                    resp.body() == null ? 0 : resp.body().length(), attemptMs);
 
                 Optional<Duration> retryAfter = parseRetryAfter(resp);
                 AiTurn err = translateError(status, resp.body(), retryAfter);
@@ -120,6 +134,10 @@ public final class ClaudeProvider implements AiProvider {
                 return new AiTurn.ProviderError(AiTurn.ProviderError.Kind.TRANSPORT,
                     "interrupted", Optional.empty());
             } catch (Exception e) {
+                long attemptMs = (System.nanoTime() - attemptStart) / 1_000_000L;
+                LOG.warn("anthropic io_error attempt={}/{} latency_ms={} ex={}: {}",
+                    attempt + 1, retry.maxAttempts() + 1, attemptMs,
+                    e.getClass().getSimpleName(), e.getMessage());
                 lastError = new AiTurn.ProviderError(AiTurn.ProviderError.Kind.TRANSPORT,
                     "io: " + e.getClass().getSimpleName() + ": " + e.getMessage(),
                     Optional.empty());

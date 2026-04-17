@@ -141,9 +141,12 @@ public final class AskSubcommand {
             return 0;
         }
         long startNanos = System.nanoTime();
+        LOG.info("ask request uuid={} msg_len={}",
+            uuid, message == null ? 0 : message.length());
         Authorizer.Result auth = Authorizer.authorize(
             snap, player, RequestKind.ASK, limiterSupplier.get());
         if (auth instanceof Authorizer.Denied d) {
+            LOG.info("ask denied uuid={} code={}", uuid, d.code());
             RequestAuditLogger.logDenied(uuid, RequestKind.ASK, d.code(), startNanos);
             // Phase 5 / REL-02: Denied.feedback carries the Component.translatable.
             // humanReadable is the English fallback used by the wire path + test sink.
@@ -161,10 +164,13 @@ public final class AskSubcommand {
                     // Hop back to tick thread for the final send (Pitfall 2).
                     tickThreadHop.accept(() -> {
                         if (result instanceof AiDispatcher.Reply r) {
+                            LOG.info("ask reply uuid={} truncated={} text_len={}",
+                                uuid, r.truncated(), r.text() == null ? 0 : r.text().length());
                             // INTENTIONAL — AI reply text is model-generated prose, not a translation key.
                             // Component.literal here per i18n audit carve-out.
                             sendSuccess(src, r.text());
                         } else if (result instanceof AiDispatcher.Error err) {
+                            LOG.info("ask error uuid={} code={}", uuid, err.code());
                             // Phase 5 / REL-02: Error.feedback carries the Component.translatable.
                             if (src != null) {
                                 src.sendFailure(err.feedback());

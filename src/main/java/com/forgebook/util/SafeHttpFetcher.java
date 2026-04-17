@@ -6,6 +6,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Predicate;
 import javax.net.ssl.HttpsURLConnection;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * HTTPS fetcher with SSRF and content-size protections. Every URL fetched by
@@ -52,6 +54,7 @@ import javax.net.ssl.HttpsURLConnection;
  * an acceptable trade-off for a working fetcher.
  */
 public final class SafeHttpFetcher {
+    private static final Logger LOG = LogManager.getLogger();
     public static final long SIZE_CAP = 1_048_576L;     // 1 MB
     public static final int TIMEOUT_MS = 15_000;        // 15 s
     public static final int MAX_REDIRECTS = 3;
@@ -78,6 +81,8 @@ public final class SafeHttpFetcher {
     }
 
     public Result fetch(URI start) throws UnsafeUrlException, IOException {
+        long startNanos = System.nanoTime();
+        LOG.info("safehttp fetch start url={}", start);
         URI current = start;
         for (int hop = 0; hop <= MAX_REDIRECTS; hop++) {
             if (!"https".equalsIgnoreCase(current.getScheme()))
@@ -120,7 +125,10 @@ public final class SafeHttpFetcher {
                     conn.disconnect();
                     if (loc == null) throw new UnsafeUrlException(
                         UnsafeUrlException.Reason.REDIRECT_LIMIT);
-                    current = current.resolve(loc);
+                    URI next = current.resolve(loc);
+                    LOG.info("safehttp redirect hop={}/{} status={} from={} to={}",
+                        hop + 1, MAX_REDIRECTS + 1, code, current, next);
+                    current = next;
                     continue;  // next iteration re-validates scheme + private-IP
                 }
 
@@ -148,6 +156,9 @@ public final class SafeHttpFetcher {
                             UnsafeUrlException.Reason.SIZE_CAP);
                     out.write(buf, 0, n);
                 }
+                long latencyMs = (System.nanoTime() - startNanos) / 1_000_000L;
+                LOG.info("safehttp fetch ok status={} bytes={} content_type={} url={} latency_ms={}",
+                    code, total, mime, current, latencyMs);
                 return new Result(out.toString(StandardCharsets.UTF_8), mime, current);
             } catch (SocketTimeoutException e) {
                 throw new UnsafeUrlException(UnsafeUrlException.Reason.TIMEOUT);
