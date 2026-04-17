@@ -24,12 +24,16 @@ import org.apache.logging.log4j.Logger;
  * constant would freeze the toggle at class-load time; ForgeConfigSpec already
  * caches internally, so re-reading is O(1).
  *
- * <p>Why {@code Bus.MOD} + {@code Dist.CLIENT}:
+ * <p>Why {@code Bus.FORGE} + {@code Dist.CLIENT}:
  * <ul>
- *   <li>{@code ScreenEvent.Init} is dispatched on the Mod event bus in Forge 1.20.1,
- *       not the Forge bus — PATTERNS §"InventoryButtonInjector.java" locks this.
- *       Contrast: {@code SessionLifecycleListener} uses {@code Bus.FORGE} because
- *       {@code ClientPlayerNetworkEvent} is Forge-bus.</li>
+ *   <li>{@code ScreenEvent.Init.Post} extends {@code net.minecraftforge.eventbus.api.Event}
+ *       and does NOT implement {@code IModBusEvent} — it is dispatched on the
+ *       <em>Forge</em> event bus ({@code MinecraftForge.EVENT_BUS}), not the mod
+ *       lifecycle bus. Registering on {@code Bus.MOD} produces
+ *       {@code IllegalArgumentException} at mod construction with
+ *       "takes an argument that is not a subtype of ... IModBusEvent".</li>
+ *   <li>Same bus as {@code SessionLifecycleListener} ({@code ClientPlayerNetworkEvent}) —
+ *       both are runtime UI/player events, not lifecycle events.</li>
  *   <li>Explicit {@code bus =} avoids the "event never fires" bug called out in
  *       CLAUDE.md §"What NOT to Use".</li>
  *   <li>{@code value = Dist.CLIENT} ensures the class is never loaded on a
@@ -42,7 +46,7 @@ import org.apache.logging.log4j.Logger;
  * {@code com.forgebook.config.ForgebookClientConfig} (a client-tier config class
  * with no secrets) and its sibling UI classes.
  */
-@Mod.EventBusSubscriber(modid = "forgebook", bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = "forgebook", bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class InventoryButtonInjector {
 
     private static final Logger LOG = LogManager.getLogger();
