@@ -119,13 +119,20 @@ public class ChatPanelWidget extends AbstractWidget {
         // Empty-state placeholder (UI-SPEC §"Copywriting Contract" + §"Typography — italic hint").
         if (bubbles.isEmpty() && errors.isEmpty() && !pending) {
             Component hint = Component.translatable("forgebook.chat.empty.body");
-            int textW = font.width(hint);
-            g.drawString(
-                font, hint,
-                contentX + (contentW - textW) / 2,
-                contentY + contentH / 2 - font.lineHeight / 2,
-                COLOR_PLACEHOLDER, false
-            );
+            List<FormattedCharSequence> hintLines = font.split(FormattedText.of(hint.getString()), contentW);
+            int blockH = hintLines.size() * font.lineHeight
+                + Math.max(0, hintLines.size() - 1) * BUBBLE_LINE_GAP;
+            int lineY = contentY + (contentH - blockH) / 2;
+            for (FormattedCharSequence line : hintLines) {
+                int lineW = font.width(line);
+                g.drawString(
+                    font, line,
+                    contentX + (contentW - lineW) / 2,
+                    lineY,
+                    COLOR_PLACEHOLDER, false
+                );
+                lineY += font.lineHeight + BUBBLE_LINE_GAP;
+            }
             return;
         }
 
