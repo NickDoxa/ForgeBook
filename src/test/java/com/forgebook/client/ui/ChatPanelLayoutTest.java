@@ -10,12 +10,15 @@ import org.junit.jupiter.api.Test;
 class ChatPanelLayoutTest {
 
     @Test
-    void normal_1280x720_centered240WidePanel() {
+    void normal_1280x720_leftPinned240WidePanel() {
         LayoutResult r = ChatPanelLayout.compute(1280, 720);
         assertFalse(r.tooSmall());
         assertFalse(r.stacked());
         assertEquals(240, r.panelW());
-        assertEquals(520, r.panelX()); // (1280-240)/2
+        // Panel is pinned to the left edge with an 8-px inset, not centered.
+        // This avoids visual conflict with InventoryScreen's 3D player-model
+        // render path and its deferred slot-tooltip pass.
+        assertEquals(8, r.panelX());
         assertEquals(20, r.panelY());
         assertEquals(680, r.panelH()); // 720-40
     }
@@ -27,7 +30,7 @@ class ChatPanelLayoutTest {
         assertFalse(r.tooSmall());
         assertFalse(r.stacked());
         assertEquals(240, r.panelW());
-        assertEquals(40, r.panelX()); // (320-240)/2
+        assertEquals(8, r.panelX()); // left-pinned
     }
 
     @Test
@@ -65,12 +68,12 @@ class ChatPanelLayoutTest {
     }
 
     @Test
-    void wideScreen_480x360_normalCentered() {
+    void wideScreen_480x360_normalLeftPinned() {
         LayoutResult r = ChatPanelLayout.compute(480, 360);
         assertFalse(r.tooSmall());
         assertFalse(r.stacked());
         assertEquals(240, r.panelW());
-        assertEquals(120, r.panelX());
+        assertEquals(8, r.panelX()); // left-pinned inset
         assertEquals(320, r.panelH()); // 360 - 40
     }
 

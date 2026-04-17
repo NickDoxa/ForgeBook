@@ -27,6 +27,9 @@ public final class ChatPanelLayout {
     public static final int PANEL_VERTICAL_INSET_TOTAL = 40;
     /** Horizontal padding on each side in stacked mode (total subtraction = 16). */
     public static final int STACKED_HORIZONTAL_PADDING = 8;
+    /** Left-edge inset for the normal-mode panel. Panel is always pinned left, not centered,
+     *  so the chat sits over the inventory without fighting the 3D player-model render layer. */
+    public static final int LEFT_EDGE_INSET = 8;
 
     public record LayoutResult(
         boolean tooSmall,
@@ -49,7 +52,12 @@ public final class ChatPanelLayout {
         }
         boolean stacked = winW < STACKED_THRESHOLD_WIDTH;
         int panelW = stacked ? (winW - 2 * STACKED_HORIZONTAL_PADDING) : DEFAULT_PANEL_WIDTH;
-        int panelX = stacked ? STACKED_HORIZONTAL_PADDING : (winW - panelW) / 2;
+        // Pin to left edge in both modes. The previous centered layout clashed
+        // visually with InventoryScreen's 3D player model (which renders through
+        // flat overlays) and with vanilla slot-hover tooltips. Left-pinning also
+        // matches user expectation — chat panel sits on the left of the screen,
+        // layering over the left portion of the inventory as needed.
+        int panelX = stacked ? STACKED_HORIZONTAL_PADDING : LEFT_EDGE_INSET;
         int panelY = PANEL_Y_INSET;
         int panelH = winH - PANEL_VERTICAL_INSET_TOTAL;
         return new LayoutResult(false, stacked, panelX, panelY, panelW, panelH);

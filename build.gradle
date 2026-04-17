@@ -76,11 +76,19 @@ jar {
     // See the comment above `relocateJsoup` for why we don't use jarJar here.
     dependsOn tasks.relocateJsoup
     from(zipTree(tasks.relocateJsoup.archiveFile)) {
-        // Skip jsoup's MANIFEST + signature files so they don't clobber ours.
-        exclude 'META-INF/MANIFEST.MF'
-        exclude 'META-INF/*.SF'
-        exclude 'META-INF/*.DSA'
-        exclude 'META-INF/*.RSA'
+        // Strip everything from jsoup's jar except its classes. The merge
+        // would otherwise bring in:
+        //   - META-INF/MANIFEST.MF         (overwrites ours)
+        //   - META-INF/LICENSE, README.md  (misattributes ForgeBook's license)
+        //   - META-INF/maven/org.jsoup/**  (obsolete POM for the non-relocated coords)
+        //   - META-INF/versions/9/module-info.class (jsoup declares "module org.jsoup"
+        //       but the classes are now under com.forgebook.shadow.jsoup — the module
+        //       descriptor lies, which confuses the JDK ModuleLayer and — critically —
+        //       Minecraft 1.20.1's resource-pack loader, breaking resource packs in
+        //       the modpack the mod is installed into)
+        //   - META-INF/*.SF/DSA/RSA         (jar signatures we can't honor)
+        // jsoup has no classes outside com/** so dropping all META-INF/ is safe.
+        exclude 'META-INF/**'
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 

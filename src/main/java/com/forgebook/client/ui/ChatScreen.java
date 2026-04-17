@@ -122,13 +122,15 @@ public class ChatScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        // Render parent first. Pitfall 11: pass Integer.MAX_VALUE for mouse
-        // coords so the parent's isMouseOver never fires — no vanilla slot
-        // tooltips bleeding through the chat panel.
-        if (parent != null) {
-            parent.render(graphics, Integer.MAX_VALUE, Integer.MAX_VALUE, partialTick);
-        }
-        // Our own dim overlay on top of the parent.
+        // Dim the background with vanilla's dark overlay. We intentionally do
+        // NOT re-render the parent InventoryScreen: its 3D player-model
+        // rendering path (renderEntityInInventoryFollowsMouse) uses pose-stack
+        // 3D draws that bleed through flat 2D overlays, and its slot-tooltip
+        // pass is deferred by GuiGraphics so it renders AFTER our paint —
+        // both cause items/player to appear on top of the chat panel. While
+        // chat is open the panel owns the screen; ESC closes chat and
+        // returns the player to the inventory (ChatScreen.onClose restores
+        // the parent via setScreen).
         this.renderBackground(graphics);
 
         // If the screen was too small at init time (no widgets added), draw a
