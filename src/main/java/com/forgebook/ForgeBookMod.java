@@ -34,11 +34,23 @@ public class ForgeBookMod {
     public ForgeBookMod() {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
 
-        // D-12, CFG-01, CFG-02: dual ForgeConfigSpec registration.
         // ForgebookServerConfig.SPEC and ForgebookClientConfig.SPEC are created in Plan 02.
         // Register both here so the mod-constructor wires the lifecycle at class-load.
+        //
+        // The "server" config is registered as COMMON (not SERVER) intentionally:
+        //   - COMMON stores in config/forgebook-server.toml (top-level, persistent,
+        //     where users expect it and the README documents it).
+        //   - SERVER would store in <world>/serverconfig/forgebook-server.toml
+        //     (per-world, easy to miss) AND Forge syncs SERVER-tier values to
+        //     every client at login — which would put the ai_api_key on the wire
+        //     to clients. The compiled-client firewall (UI-08 + ApiKey.raw grep)
+        //     still prevents client code from legitimately reading it, but
+        //     COMMON closes the network-sync leak at source.
+        //   - The filename "forgebook-server.toml" is retained because it
+        //     reflects the content semantics (server-side concerns: API keys,
+        //     rate limits, OP-only gate) — not the Forge ModConfig.Type enum.
         ModLoadingContext.get().registerConfig(
-            ModConfig.Type.SERVER,
+            ModConfig.Type.COMMON,
             com.forgebook.config.ForgebookServerConfig.SPEC,
             "forgebook-server.toml");
         ModLoadingContext.get().registerConfig(
