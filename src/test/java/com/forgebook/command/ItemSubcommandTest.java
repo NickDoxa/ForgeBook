@@ -239,4 +239,63 @@ class ItemSubcommandTest {
         volatile String lastFailure;
         @Override public void accept(String s) { lastFailure = s; }
     }
+
+    // ======================================================================
+    //  extractUrlFromText — pure function, no Minecraft dependencies.
+    //  Covers the tier-2 fallback used by DEFAULT_MOD_URL_LOOKUP when a mod
+    //  leaves mods.toml's displayURL field empty but embeds URLs in the
+    //  description or credits text.
+    // ======================================================================
+
+    @Test void extractUrl_empty_returnsEmpty() {
+        assertTrue(ItemSubcommand.extractUrlFromText("").isEmpty());
+        assertTrue(ItemSubcommand.extractUrlFromText(null).isEmpty());
+    }
+
+    @Test void extractUrl_noUrl_returnsEmpty() {
+        assertTrue(ItemSubcommand.extractUrlFromText("A cool mod with items.").isEmpty());
+    }
+
+    @Test void extractUrl_singleUrl_returnsIt() throws Exception {
+        var result = ItemSubcommand.extractUrlFromText("Visit https://example.com for details.");
+        assertTrue(result.isPresent());
+        assertEquals("https://example.com", result.get().toString());
+    }
+
+    @Test void extractUrl_preferWikiOverGithub() throws Exception {
+        // Documentation-shaped URLs should beat non-doc ones.
+        var result = ItemSubcommand.extractUrlFromText(
+            "Source: https://example.com. Wiki: https://example.fandom.com/wiki/Home");
+        assertTrue(result.isPresent());
+        assertEquals("https://example.fandom.com/wiki/Home", result.get().toString());
+    }
+
+    @Test void extractUrl_filtersSocialLinks() throws Exception {
+        // Discord/Twitter/Patreon should be skipped entirely.
+        var result = ItemSubcommand.extractUrlFromText(
+            "Join us on https://discord.gg/abc or https://twitter.com/mymod. Docs: https://github.com/me/mod");
+        assertTrue(result.isPresent());
+        assertEquals("https://github.com/me/mod", result.get().toString());
+    }
+
+    @Test void extractUrl_stripsTrailingPunctuation() throws Exception {
+        // "Visit https://example.com." should not include the sentence-ending period.
+        var result = ItemSubcommand.extractUrlFromText("Visit https://example.com.");
+        assertTrue(result.isPresent());
+        assertEquals("https://example.com", result.get().toString());
+    }
+
+    @Test void extractUrl_allSocial_returnsEmpty() {
+        // If the ONLY URLs are social, we return empty rather than pick a bad fallback.
+        var result = ItemSubcommand.extractUrlFromText(
+            "Support me on https://patreon.com/me and https://discord.gg/xyz");
+        assertTrue(result.isEmpty());
+    }
+
+    @Test void extractUrl_githubWithPath_prefersDocsPath() throws Exception {
+        var result = ItemSubcommand.extractUrlFromText(
+            "Changelog: https://example.com. Docs: https://docs.example.com/guide");
+        assertTrue(result.isPresent());
+        assertEquals("https://docs.example.com/guide", result.get().toString());
+    }
 }

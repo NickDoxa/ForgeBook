@@ -139,14 +139,101 @@ public final class ItemSubcommand {
         item -> ForgeRegistries.ITEMS.getKey(item);
 
     /**
-     * Default lookup: ask ModList for the mod's documentation URL.
-     * Uses {@link net.minecraftforge.forgespi.language.IModInfo#getModURL()} — the
-     * canonical IModInfo entry point for the documentation URL (see CLAUDE.md stack notes).
+     * Pattern for an http/https URL embedded in free-text mods.toml fields
+     * (description, credits). Terminates at whitespace, quotes, angle brackets,
+     * closing paren/bracket, or a trailing period-followed-by-space that is
+     * probably sentence punctuation (e.g. "Visit https://example.com." — we
+     * want to keep the slash but not the sentence-ending period).
+     */
+    private static final java.util.regex.Pattern URL_PATTERN =
+        java.util.regex.Pattern.compile("https?://[^\\s'\"<>()\\[\\]]+?(?=[.!?,]?(\\s|$))");
+
+    /**
+     * Pure-function URL extractor for free-text mod metadata.
+     * Returns the first http(s) URL found in the given text, or empty.
+     * Prefers URLs whose host looks like documentation (github, gitlab,
+     * *.fandom.com, anything containing "wiki" or "docs") over social links.
+     *
+     * <p>Unit-testable without booting Minecraft. Exposed package-private
+     * for tests under src/test/java/com/forgebook/command/.
+     */
+    static Optional<URL> extractUrlFromText(String text) {
+        if (text == null || text.isEmpty()) {
+            return Optional.empty();
+        }
+        java.util.regex.Matcher m = URL_PATTERN.matcher(text);
+        URL firstMatch = null;
+        URL preferredMatch = null;
+        while (m.find()) {
+            String candidate = m.group();
+            try {
+                java.net.URI uri = java.net.URI.create(candidate);
+                URL url = uri.toURL();
+                String host = url.getHost() == null ? "" : url.getHost().toLowerCase();
+                String path = url.getPath() == null ? "" : url.getPath().toLowerCase();
+                boolean looksLikeDocs =
+                    host.contains("github.com")
+                        || host.contains("gitlab.com")
+                        || host.endsWith(".fandom.com")
+                        || host.contains("wiki")
+                        || host.contains("docs")
+                        || path.contains("wiki")
+                        || path.contains("docs");
+                boolean isSocial =
+                    host.equals("twitter.com") || host.equals("x.com")
+                        || host.contains("discord.gg") || host.contains("discord.com")
+                        || host.contains("patreon.com") || host.contains("ko-fi.com")
+                        || host.contains("buymeacoffee.com") || host.contains("paypal.");
+                if (preferredMatch == null && looksLikeDocs && !isSocial) {
+                    preferredMatch = url;
+                }
+                if (firstMatch == null && !isSocial) {
+                    firstMatch = url;
+                }
+            } catch (java.net.MalformedURLException | IllegalArgumentException ignored) {
+                // skip malformed matches; regex is greedy-ish
+            }
+        }
+        return Optional.ofNullable(preferredMatch != null ? preferredMatch : firstMatch);
+    }
+
+    /**
+     * Default lookup: three-tier resolver for a mod's documentation URL.
+     * <ol>
+     *   <li>{@link net.minecraftforge.forgespi.language.IModInfo#getModURL()} — the
+     *       canonical {@code displayURL} field in mods.toml. Best when present.</li>
+     *   <li>Scan the free-text {@code description} field for an http(s) URL. Many mod
+     *       authors write "Visit my wiki at https://..." in the description but leave
+     *       {@code displayURL} empty.</li>
+     *   <li>Scan {@code credits} similarly, as a last resort.</li>
+     * </ol>
+     * Social links (Discord/Twitter/Patreon/etc.) are filtered out since they
+     * rarely contain documentation.
      */
     static final Function<String, Optional<URL>> DEFAULT_MOD_URL_LOOKUP =
-        modId -> ModList.get().getModContainerById(modId)
-            .map(c -> c.getModInfo())
-            .flatMap(info -> info.getModURL());
+        modId -> {
+            var container = ModList.get().getModContainerById(modId);
+            if (container.isEmpty()) return Optional.empty();
+            var info = container.get().getModInfo();
+            // Tier 1: dedicated displayURL field.
+            Optional<URL> fromField = info.getModURL();
+            if (fromField.isPresent()) return fromField;
+            // Tier 2: scrape description text.
+            Optional<URL> fromDescription = extractUrlFromText(info.getDescription());
+            if (fromDescription.isPresent()) return fromDescription;
+            // Tier 3: scrape credits (often holds "based on mod X at https://...").
+            try {
+                // IModInfo doesn't expose getCredits() directly — reach through the config holder.
+                // ModInfo in 1.20.1 keeps credits under configElement("credits"). If the API
+                // shape isn't available at runtime, silently skip tier 3.
+                java.util.Optional<String> credits = info.getConfig().getConfigElement("credits")
+                    .filter(v -> v instanceof String)
+                    .map(Object::toString);
+                return credits.flatMap(ItemSubcommand::extractUrlFromText);
+            } catch (Throwable t) {
+                return Optional.empty();
+            }
+        };
 
     /**
      * Core pipeline — pure-Java types for every Minecraft-or-static dependency.
