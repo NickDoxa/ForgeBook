@@ -60,17 +60,30 @@ tasks.register('relocateJsoup',
     relocate 'org.jsoup', 'com.forgebook.shadow.jsoup'
 }
 
-dependencies {
-    jarJar files(tasks.relocateJsoup)
-}
-
-tasks.named('jarJar') { dependsOn 'relocateJsoup' }
+// ForgeGradle 6's `jarJar` task silently drops `files(...)` entries because they
+// carry no version metadata (jarJar only accepts versioned Maven coords). We bypass
+// jarJar entirely for this relocated dependency and merge the already-relocated
+// classes directly into the main jar below. Since jsoup is relocated to
+// `com.forgebook.shadow.jsoup.*`, there is no classloader collision with other
+// mods, and Forge's classloader picks the classes up from the jar root at runtime.
 
 test {
     useJUnitPlatform()
 }
 
 jar {
+    // Bundle the relocated jsoup classes directly into the main jar.
+    // See the comment above `relocateJsoup` for why we don't use jarJar here.
+    dependsOn tasks.relocateJsoup
+    from(zipTree(tasks.relocateJsoup.archiveFile)) {
+        // Skip jsoup's MANIFEST + signature files so they don't clobber ours.
+        exclude 'META-INF/MANIFEST.MF'
+        exclude 'META-INF/*.SF'
+        exclude 'META-INF/*.DSA'
+        exclude 'META-INF/*.RSA'
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
     manifest {
         attributes([
             "Specification-Title"     : "forgebook",
