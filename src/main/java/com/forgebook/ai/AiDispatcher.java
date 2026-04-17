@@ -12,6 +12,7 @@ import com.forgebook.tool.ToolRegistry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import net.minecraft.network.chat.Component;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -53,8 +54,19 @@ public final class AiDispatcher {
     /** Terminal reply from the AI agent. truncated=true when stop_reason == "max_tokens". */
     public record Reply(String text, boolean truncated) implements Result {}
 
-    /** Typed error ready for ChatErrorPacket encoding. */
-    public record Error(ErrorCode code, String humanReadable) implements Result {}
+    /**
+     * Typed error ready for ChatErrorPacket encoding.
+     *
+     * <h3>Phase 5 (REL-02) — Option A split fields</h3>
+     * Mirrors {@link com.forgebook.safety.Authorizer.Denied}:
+     * <ul>
+     *   <li>{@code humanReadable} — default-locale English fallback, preserved for
+     *       {@link com.forgebook.network.packet.ChatErrorPacket} wire encoding.</li>
+     *   <li>{@code feedback} — {@link Component#translatable(String, Object...)} for
+     *       command-surface rendering (Ask/Item/RagItemPipeline).</li>
+     * </ul>
+     */
+    public record Error(ErrorCode code, String humanReadable, Component feedback) implements Result {}
 
     /** Production singleton. Null injectedProvider means create provider per-dispatch. */
     public static final AiDispatcher INSTANCE = new AiDispatcher(null);
@@ -91,7 +103,10 @@ public final class AiDispatcher {
         if (snap == null) {
             LOG.error("AiDispatcher invoked before ConfigHolder seeded — this should be " +
                 "impossible after ServerStartingEvent. Check ForgeBookMod wiring.");
-            return new Error(ErrorCode.PROVIDER, "ForgeBook not initialized — check server logs.");
+            return new Error(
+                ErrorCode.PROVIDER,
+                "ForgeBook not initialized — check server logs.",
+                Component.translatable("forgebook.command.not_initialized"));
         }
 
         long startNanos = System.nanoTime();
@@ -132,7 +147,10 @@ public final class AiDispatcher {
         } catch (Exception e) {
             LOG.error("AgentLoop threw unexpected exception for {}",
                 dc.sender() != null ? dc.sender().getUUID() : "<no sender>", e);
-            return new Error(ErrorCode.PROVIDER, "Unexpected internal error.");
+            return new Error(
+                ErrorCode.PROVIDER,
+                "Unexpected internal error.",
+                Component.translatable("forgebook.command.provider.unexpected_internal"));
         }
 
         long latencyMs = (System.nanoTime() - startNanos) / 1_000_000L;
@@ -162,7 +180,10 @@ public final class AiDispatcher {
                 com.forgebook.safety.RequestAuditLogger.logFailure(
                     dc.sender().getUUID(), dc.kind(), ErrorCode.PROVIDER, 0, 0, latencyMs);
             }
-            return new Error(ErrorCode.PROVIDER, "AI agent did not produce a final reply.");
+            return new Error(
+                ErrorCode.PROVIDER,
+                "AI agent did not produce a final reply.",
+                Component.translatable("forgebook.command.provider.no_final_reply"));
         }
     }
 
@@ -177,21 +198,36 @@ public final class AiDispatcher {
      */
     static Error mapError(AiTurn.ProviderError err) {
         return switch (err.kind()) {
-            case TRANSPORT       -> new Error(ErrorCode.TRANSPORT,
-                "Transient network issue. Try again.");
-            case PROVIDER        -> new Error(ErrorCode.PROVIDER,
-                "AI provider returned an error.");
-            case OVERLOADED      -> new Error(ErrorCode.OVERLOADED,
-                "Server is busy. Try again.");
-            case RATE_LIMITED    -> new Error(ErrorCode.RATE_LIMITED,
-                "You're sending requests too fast.");
-            case NOT_IMPLEMENTED -> new Error(ErrorCode.PROVIDER,
-                "This AI provider is not implemented in v1.");
-            case CIRCUIT_OPEN    -> new Error(ErrorCode.PROVIDER,
-                "AI provider is temporarily unavailable.");
-            case ITERATION_CAP   -> new Error(ErrorCode.PROVIDER,
+            case TRANSPORT       -> new Error(
+                ErrorCode.TRANSPORT,
+                "Transient network issue. Try again.",
+                Component.translatable("forgebook.command.provider.transport"));
+            case PROVIDER        -> new Error(
+                ErrorCode.PROVIDER,
+                "AI provider returned an error.",
+                Component.translatable("forgebook.command.provider_error"));
+            case OVERLOADED      -> new Error(
+                ErrorCode.OVERLOADED,
+                "Server is busy. Try again.",
+                Component.translatable("forgebook.command.overloaded"));
+            case RATE_LIMITED    -> new Error(
+                ErrorCode.RATE_LIMITED,
+                "You're sending requests too fast.",
+                Component.translatable("forgebook.command.provider.rate_limited"));
+            case NOT_IMPLEMENTED -> new Error(
+                ErrorCode.PROVIDER,
+                "This AI provider is not implemented in v1.",
+                Component.translatable("forgebook.command.provider.not_implemented"));
+            case CIRCUIT_OPEN    -> new Error(
+                ErrorCode.PROVIDER,
+                "AI provider is temporarily unavailable.",
+                Component.translatable("forgebook.command.provider.circuit_open"));
+            case ITERATION_CAP   -> new Error(
+                ErrorCode.PROVIDER,
                 "AI agent could not complete the task within " +
-                AgentLoop.MAX_ITERATIONS + " iterations.");
+                    AgentLoop.MAX_ITERATIONS + " iterations.",
+                Component.translatable(
+                    "forgebook.command.provider.iteration_cap", AgentLoop.MAX_ITERATIONS));
         };
     }
 }

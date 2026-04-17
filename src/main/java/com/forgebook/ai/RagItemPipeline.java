@@ -154,7 +154,7 @@ public final class RagItemPipeline {
         if (snap == null) {
             LOG.error("RagItemPipeline invoked before ConfigHolder seeded — this should be " +
                 "impossible after ServerStartingEvent. Check ForgeBookMod wiring.");
-            feedback.sendFailure("ForgeBook not initialized — check server logs.");
+            feedback.sendFailureKey("forgebook.command.not_initialized");
             return;
         }
 
@@ -166,7 +166,8 @@ public final class RagItemPipeline {
             if (uuid != null) {
                 RequestAuditLogger.logDenied(uuid, kind, d.code(), startNanos);
             }
-            feedback.sendFailure(d.humanReadable());
+            // Phase 5 / REL-02: Denied.feedback carries the Component.translatable.
+            feedback.sendFailureComponent(d.feedback());
             return;
         }
 
@@ -175,9 +176,7 @@ public final class RagItemPipeline {
             if (uuid != null) {
                 RequestAuditLogger.logFailure(uuid, kind, ErrorCode.PROVIDER, 0, 0, elapsedMs(startNanos));
             }
-            feedback.sendFailure(
-                "No documentation URL is registered for mod '" + modId +
-                "'. Try /forgebook ask <question> for a web-search-backed answer.");
+            feedback.sendFailureKey("forgebook.command.item.no_docs_url", modId);
             return;
         }
 
@@ -194,7 +193,7 @@ public final class RagItemPipeline {
             if (uuid != null) {
                 RequestAuditLogger.logFailure(uuid, kind, ErrorCode.TRANSPORT, 0, 0, elapsedMs(startNanos));
             }
-            feedback.sendFailure("Could not fetch mod documentation. Try again later.");
+            feedback.sendFailureKey("forgebook.command.item.fetch_failed");
             return;
         }
 
@@ -222,7 +221,7 @@ public final class RagItemPipeline {
             if (uuid != null) {
                 RequestAuditLogger.logFailure(uuid, kind, ErrorCode.PROVIDER, 0, 0, elapsedMs(startNanos));
             }
-            feedback.sendFailure("AI provider returned an error.");
+            feedback.sendFailureKey("forgebook.command.provider_error");
             return;
         }
 
@@ -238,6 +237,14 @@ public final class RagItemPipeline {
                 RequestAuditLogger.logSuccess(uuid, kind, inTok, outTok, latencyMs);
             }
             // CMD-07: reply must end with "\n\nSource: <modURL>" — defense-in-depth citation.
+            // Phase 5 / REL-02 — carve-out: the source label is NOT wrapped in
+            // Component.translatable here because the containing AI reply is emitted via
+            // sendSuccess → Component.literal (model prose, not a translation key).
+            // Wrapping just the label would require restructuring sendSuccess to accept
+            // a MutableComponent chain (out of scope for v1). The
+            // forgebook.command.item.source_label key is retained in en_us.json for
+            // v2 when that restructure happens (tracked as deferred work).
+            // Preserving the literal "Source: " prefix keeps CMD-07 byte-compatible.
             String reply = fr.text() + "\n\nSource: " + url;
             feedback.sendSuccess(reply);
         } else if (turn instanceof AiTurn.ProviderError err) {
@@ -245,7 +252,8 @@ public final class RagItemPipeline {
             if (uuid != null) {
                 RequestAuditLogger.logFailure(uuid, kind, mapped.code(), 0, 0, latencyMs);
             }
-            feedback.sendFailure(mapped.humanReadable());
+            // Phase 5 / REL-02: mapped.feedback carries the Component.translatable.
+            feedback.sendFailureComponent(mapped.feedback());
         } else {
             // Defensive — a ToolUses return should be impossible with empty tools[],
             // but the sealed contract admits it, so surface as PROVIDER error with no user data.
@@ -253,7 +261,7 @@ public final class RagItemPipeline {
             if (uuid != null) {
                 RequestAuditLogger.logFailure(uuid, kind, ErrorCode.PROVIDER, 0, 0, latencyMs);
             }
-            feedback.sendFailure("Unexpected provider response.");
+            feedback.sendFailureKey("forgebook.command.provider_unexpected");
         }
     }
 
@@ -277,11 +285,22 @@ public final class RagItemPipeline {
     /** Bridges a real {@link CommandSourceStack} to the pure-Java {@link Feedback} seam. */
     private static Feedback feedbackOf(CommandSourceStack src) {
         return new Feedback() {
+            // INTENTIONAL — AI reply text is model-generated prose, not a translation key.
+            // Component.literal here per i18n audit carve-out (PATTERNS.md §RagItemPipeline).
             @Override public void sendSuccess(String text) {
                 src.sendSuccess(() -> Component.literal(text), false);
             }
+            // INTENTIONAL — default-path sendFailure(String) remains for callers that still
+            // pass prose (none in Phase 5 production; retained for backwards compatibility
+            // with any lingering test fakes).
             @Override public void sendFailure(String text) {
                 src.sendFailure(Component.literal(text));
+            }
+            @Override public void sendFailureKey(String key, Object... args) {
+                src.sendFailure(Component.translatable(key, args));
+            }
+            @Override public void sendFailureComponent(Component feedback) {
+                src.sendFailure(feedback);
             }
         };
     }
@@ -291,10 +310,44 @@ public final class RagItemPipeline {
     // only the in-package test class {@code RagItemPipelineTest} may depend on them)
     // ------------------------------------------------------------------
 
-    /** Abstraction over {@link CommandSourceStack#sendSuccess}/{@link CommandSourceStack#sendFailure}. */
+    /**
+     * Abstraction over {@link CommandSourceStack#sendSuccess}/{@link CommandSourceStack#sendFailure}.
+     *
+     * <h3>Phase 5 (REL-02) additions</h3>
+     * <ul>
+     *   <li>{@link #sendFailureKey(String, Object...)} — emits a translatable failure
+     *       with optional positional args. Production wraps with
+     *       {@link Component#translatable(String, Object...)}. Default impl routes to
+     *       {@link #sendFailure(String)} with the key itself, so pure-Java test
+     *       {@link Feedback} stubs keep working without overrides (key ends up in
+     *       {@code lastFailure} for key-based assertions).</li>
+     *   <li>{@link #sendFailureComponent(Component)} — passes an already-constructed
+     *       Component (for {@code Denied.feedback()} / {@code AiDispatcher.Error.feedback()}
+     *       pass-through). Default impl stringifies via {@link Component#getString()}
+     *       for test convenience.</li>
+     * </ul>
+     */
     interface Feedback {
         void sendSuccess(String text);
         void sendFailure(String text);
+
+        /**
+         * Phase 5 — emit a translatable failure with optional args.
+         * Production overrides this to use Component.translatable(key, args).
+         * Default impl falls back to sendFailure(key) for tests — the KEY ends up in
+         * the test sink, which is the expected assertion shape per PATTERNS.md.
+         */
+        default void sendFailureKey(String key, Object... args) {
+            sendFailure(key);
+        }
+
+        /**
+         * Phase 5 — emit an already-constructed Component (for Denied.feedback /
+         * AiDispatcher.Error.feedback pass-through). Default impl stringifies for tests.
+         */
+        default void sendFailureComponent(Component feedback) {
+            sendFailure(feedback.getString());
+        }
     }
 
     /** Test seam mirroring {@link SafeHttpFetcher#fetch(URI)} so tests avoid live network. */
