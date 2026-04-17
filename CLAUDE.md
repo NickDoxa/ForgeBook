@@ -1,4 +1,3 @@
-<!-- GSD:project-start source:PROJECT.md -->
 ## Project
 
 **ForgeBook**
@@ -16,9 +15,6 @@ ForgeBook is a Minecraft Forge 1.20.1 mod that bridges AI with the in-game exper
 - **Cost**: Default guardrails must prevent a single malicious player from draining the server owner's API budget — OP-only by default + per-player rate limit when opened up
 - **Asset sourcing**: GUI assets must be either vanilla-reused or permissively licensed public assets — no assets scraped from copyrighted sources
 - **Licensing**: Open source — MIT default; user can re-license before first tagged release
-<!-- GSD:project-end -->
-
-<!-- GSD:stack-start source:research/STACK.md -->
 ## Technology Stack
 
 ## Executive Recommendation (one-liner)
@@ -155,44 +151,3 @@ ForgeBook is a Minecraft Forge 1.20.1 mod that bridges AI with the in-game exper
 - [Gemwire Forge Community Wiki: SimpleChannel](https://forge.gemwire.uk/wiki/SimpleChannel) — SimpleChannel pattern reference. MEDIUM.
 - [NeoForged: Networking Rework](https://neoforged.net/news/20.4networking-rework/) — Context on what changed post-1.20.1 (confirms `ChannelBuilder` fluent API is NOT in 1.20.1 Forge). MEDIUM.
 ## Flags / Open Questions for Later Phases
-<!-- GSD:stack-end -->
-
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
-## Conventions
-
-Conventions not yet established. Will populate as patterns emerge during development.
-<!-- GSD:conventions-end -->
-
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
-## Architecture
-
-Architecture not yet mapped. Follow existing patterns found in the codebase.
-<!-- GSD:architecture-end -->
-
-<!-- GSD:skills-start source:skills/ -->
-## Project Skills
-
-No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, or `.github/skills/` with a `SKILL.md` index file.
-<!-- GSD:skills-end -->
-
-<!-- GSD:workflow-start source:GSD defaults -->
-## GSD Workflow Enforcement
-
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
-
-Use these entry points:
-- `/gsd-quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd-debug` for investigation and bug fixing
-- `/gsd-execute-phase` for planned phase work
-
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
-
-
-
-<!-- GSD:profile-start -->
-## Developer Profile
-
-> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
