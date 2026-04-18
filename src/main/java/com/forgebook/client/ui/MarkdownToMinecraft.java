@@ -42,6 +42,7 @@ public final class MarkdownToMinecraft {
     private static final String UND   = "\u00a7n";
     private static final String STRIKE = "\u00a7m";
     private static final String GRAY  = "\u00a77";
+    private static final String GOLD  = "\u00a76";   // headings — tactical accent, body stays white
 
     // Order matters — more specific patterns MUST match before less specific ones.
     // Code fences ``` before inline `. ** before *. __ before _.
@@ -89,8 +90,8 @@ public final class MarkdownToMinecraft {
         s = replaceGroup1With(ITAL_UNDERSCORE, s, ITAL, RESET);
         s = replaceGroup1With(STRIKE_P, s, STRIKE, RESET);
 
-        // Headings: "# Title" → "§lTitle§r" (drop the hashes, bold the rest).
-        s = HEADING.matcher(s).replaceAll(BOLD + "$2" + RESET);
+        // Headings: "# Title" → "§6§lTitle§r" (gold + bold; body stays default white).
+        s = HEADING.matcher(s).replaceAll(GOLD + BOLD + "$2" + RESET);
 
         // Bullets: "- foo" → "• foo" keeping indentation.
         s = BULLET.matcher(s).replaceAll("$1\u2022 ");

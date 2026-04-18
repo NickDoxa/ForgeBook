@@ -150,8 +150,11 @@ public final class RagItemPipeline {
             modURL,
             kind,
             ConfigHolder.get(),
-            // Real OP gate / rate limit / kill switch consulted here in production.
-            snap -> Authorizer.authorize(snap, player, kind, RateLimiterHolder.get()),
+            // ItemSubcommand already consumed a rate-limit token on the tick thread
+            // (SAFE-06). Re-checking OP / kill switch here is defense-in-depth; re-
+            // consuming the token would double-spend the bucket (visible since the
+            // 1.0.6 burst cap — every /forgebook item would return RATE_LIMITED).
+            snap -> Authorizer.reauthorizeSkipRateLimit(snap, player, kind),
             uri -> new SafeHttpFetcher().fetch(uri),
             // CurseForge description API — returns empty when URL isn't CF or key unset,
             // which causes the pipeline to fall through to the generic SafeHttpFetcher path.
@@ -438,18 +441,15 @@ public final class RagItemPipeline {
         return Math.max(1, chars / 4);
     }
 
-    /** Aqua — base color for ForgeBook chat replies. Matches {@code AskSubcommand}. */
-    private static final String REPLY_BASE_COLOR = "\u00a7b";
-
     /** Bridges a real {@link CommandSourceStack} to the pure-Java {@link Feedback} seam. */
     private static Feedback feedbackOf(CommandSourceStack src) {
         return new Feedback() {
             // INTENTIONAL — AI reply text is model-generated prose, not a translation key.
             // Component.literal here per i18n audit carve-out (PATTERNS.md §RagItemPipeline).
-            // Strip markdown + apply base color so * and _ don't leak into chat and
-            // replies are visually distinct from default white text.
+            // Strip markdown so *, _, ` don't leak into chat; headings get a gold-bold
+            // accent via MarkdownToMinecraft.convert — body text stays default white.
             @Override public void sendSuccess(String text) {
-                String rendered = MarkdownToMinecraft.convertColored(text, REPLY_BASE_COLOR);
+                String rendered = MarkdownToMinecraft.convert(text);
                 src.sendSuccess(() -> Component.literal(rendered), false);
             }
             // INTENTIONAL — default-path sendFailure(String) remains for callers that still

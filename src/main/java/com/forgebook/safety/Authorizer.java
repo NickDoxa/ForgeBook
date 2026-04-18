@@ -81,6 +81,42 @@ public final class Authorizer {
     }
 
     /**
+     * Re-check OP gate + kill switch without consuming a rate-limit token. Used by
+     * {@link com.forgebook.ai.RagItemPipeline#run} in the off-tick executor task —
+     * {@link com.forgebook.command.ItemSubcommand} already called
+     * {@link #authorize(ConfigSnapshot, ServerPlayer, RequestKind, RateLimiter)} on
+     * the tick thread and consumed a token; re-consuming one here would double-spend
+     * the per-player bucket (visible since the 1.0.6 burst cap).
+     *
+     * <p>Still re-checks kill switch, null-sender, and OP gate in case an operator
+     * toggled state between the tick authorize and the executor run. The window is
+     * sub-second but the re-check is essentially free.
+     */
+    public static Result reauthorizeSkipRateLimit(ConfigSnapshot snap, ServerPlayer sender, RequestKind kind) {
+        UUID uuid = (sender == null) ? null : sender.getUUID();
+        boolean isOp = (sender != null) && sender.hasPermissions(2);
+        if (KillSwitch.isDisabled()) {
+            return new Denied(
+                ErrorCode.DISABLED,
+                "ForgeBook is temporarily disabled by an operator.",
+                Component.translatable("forgebook.command.denied.disabled"));
+        }
+        if (uuid == null) {
+            return new Denied(
+                ErrorCode.FORBIDDEN,
+                "Only players may invoke ForgeBook.",
+                Component.translatable("forgebook.command.denied.not_player"));
+        }
+        if (snap.opOnly() && !isOp) {
+            return new Denied(
+                ErrorCode.FORBIDDEN,
+                "ForgeBook is OP-only on this server.",
+                Component.translatable("forgebook.command.denied.forbidden"));
+        }
+        return new Allowed();
+    }
+
+    /**
      * Test seam + core logic. Package-private so unit tests in {@code com.forgebook.safety}
      * can invoke without constructing a ServerPlayer.
      *

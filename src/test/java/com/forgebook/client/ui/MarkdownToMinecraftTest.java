@@ -63,10 +63,13 @@ class MarkdownToMinecraftTest {
         assertTrue(result.contains("int x = 1;"));
     }
 
-    @Test void heading_becomesBold_hashesStripped() {
-        assertEquals(L + "Title" + R,
+    @Test void heading_becomesGoldBold_hashesStripped() {
+        // 1.0.7: tactical color — headings get a gold accent so body text can stay
+        // default white. Prefix is §6§l, suffix §r.
+        String goldBold = "\u00a76" + L;
+        assertEquals(goldBold + "Title" + R,
             MarkdownToMinecraft.convert("# Title"));
-        assertEquals(L + "Subtitle" + R,
+        assertEquals(goldBold + "Subtitle" + R,
             MarkdownToMinecraft.convert("### Subtitle"));
     }
 

@@ -200,13 +200,11 @@ public final class AskSubcommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    /** Aqua — base color for ForgeBook chat replies. Distinguishes mod output from vanilla system text. */
-    private static final String REPLY_BASE_COLOR = "\u00a7b";
-
     private static void sendSuccess(CommandSourceStack src, String text) {
-        // Strip markdown + apply base color so * and _ don't leak into chat as raw
-        // characters and replies are visually distinct from default white text.
-        String rendered = MarkdownToMinecraft.convertColored(text, REPLY_BASE_COLOR);
+        // Strip markdown so *, _, ` don't leak into chat as raw characters. Body text
+        // stays default white; headings get a tactical gold-bold accent via
+        // MarkdownToMinecraft.convert.
+        String rendered = MarkdownToMinecraft.convert(text);
         if (src != null) {
             // INTENTIONAL — AI reply text is model-generated prose, not a translation key.
             // Component.literal here per i18n audit carve-out.
