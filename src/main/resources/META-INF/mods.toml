@@ -4,12 +4,12 @@ license="MIT"
 
 [[mods]]
 modId="forgebook"
-version="1.0.4"
+version="1.0.5"
 displayName="ForgeBook"
 displayURL="https://github.com/NickDoxa/ForgeBook"
 issueTrackerURL="https://github.com/NickDoxa/ForgeBook/issues"
 logoFile="logo.png"
-credits="jsoup by Jonathan Hedley (MIT) — bundled as com.forgebook.shadow.jsoup"
+credits="jsoup by Jonathan Hedley (MIT) — bundled under org.jsoup"
 authors="Nick Doxa"
 description='''
 ForgeBook puts an AI helper inside your inventory so you can ask questions about the mods

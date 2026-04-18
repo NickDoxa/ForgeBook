@@ -145,7 +145,7 @@ gh release create v1.0.0 build/libs/forgebook-1.0.0.jar \
 |---|---|---|
 | `./gradlew` says "unsupported Java version" | Wrong JDK on PATH. | Install Temurin JDK 17, set `JAVA_HOME`. |
 | Server log: `ai_api_key is required` | Step 5 of server install skipped or typo. | Edit `config/forgebook-server.toml`, restart or `/forgebook reload`. |
-| Client log: `NoClassDefFoundError com.forgebook.shadow.jsoup...` | jsoup not bundled into the jar. | Re-run `jar tf build/libs/forgebook-1.0.0.jar \| grep jsoup` — if empty, the `jarJar` config is broken. Fix before shipping. |
+| Server log: `NoClassDefFoundError org.jsoup.Jsoup` | jsoup not bundled into the jar (regression in packaging). | Run `jar tf build/libs/forgebook-*.jar \| grep org/jsoup/Jsoup.class` — if empty, the `from({ configurations.jsoupBundled... })` merge in `build.gradle` is broken. Fix before shipping. |
 | `/forgebook item` returns `DISABLED` | An OP ran `/forgebook disable`. | `/forgebook enable` (must be OP). |
 | `/forgebook item` returns `RATE_LIMITED: retry in Ns` | Per-player bucket exhausted. | Wait; or raise `rate_limit_per_minute` + `/forgebook reload`. |
 | Inventory button doesn't appear on the client | Client-side `enable_chat_interface = false`. | Edit `config/forgebook-client.toml`, set to `true`, relaunch. |

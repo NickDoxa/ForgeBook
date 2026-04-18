@@ -264,7 +264,7 @@ Yes — MIT-licensed. Keep `THIRD_PARTY_NOTICES.md` with the jar.
 - Third-party attributions: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
 - Built on [Minecraft Forge](https://minecraftforge.net/), thanks to the Forge maintainers and the [Parchment](https://parchmentmc.org/) mapping project for the readable parameter names that made development bearable.
 - AI: [Anthropic Claude](https://www.anthropic.com/)
-- HTML scraping: [jsoup](https://jsoup.org/) (MIT, bundled via Forge's `jarJar` with `com.forgebook.shadow.jsoup` relocation)
+- HTML scraping: [jsoup](https://jsoup.org/) (MIT, classes merged into the mod jar under their original `org.jsoup` package)
 
 ## License
 

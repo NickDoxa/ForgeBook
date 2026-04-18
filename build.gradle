@@ -4,12 +4,11 @@ plugins {
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
     id 'org.parchmentmc.librarian.forgegradle' version '1.+'
-    id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
     id 'java'
 }
 
 group = 'com.forgebook'
-version = '1.0.4'
+version = '1.0.5'
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 minecraft {
@@ -35,59 +34,50 @@ minecraft {
     }
 }
 
-// Separate config so the raw jsoup jar isn't on the compile classpath directly.
-configurations { jsoupToRelocate }
+// Dedicated config for the jsoup artifact that gets merged into the main jar.
+// Kept off `implementation` so it doesn't leak into consumers' compile classpaths.
+configurations { jsoupBundled }
 
 dependencies {
     minecraft 'net.minecraftforge:forge:1.20.1-47.4.18'
-    // The relocated jsoup (nested by jarJar) is what runtime sees.
-    jsoupToRelocate "org.jsoup:jsoup:${jsoupVersion}"
-    // Compile-time: we need jsoup on the classpath so code in Phase 2 can compile against com.forgebook.shadow.jsoup.*.
-    // Use compileOnly to avoid double-bundling; jarJar bundles the relocated jar at runtime.
+    // Bundled copy — its classes are merged into the main jar at build time,
+    // under the original `org.jsoup.*` package so compile-time imports match
+    // runtime. (1.0.5: prior relocation to `com.forgebook.shadow.jsoup.*`
+    // rewrote jsoup's own bytecode but left our call sites pointing at
+    // `org.jsoup.*`, producing NoClassDefFoundError the first time
+    // fetch_mod_docs_page or DuckDuckGoHtmlAdapter was actually invoked.)
+    jsoupBundled "org.jsoup:jsoup:${jsoupVersion}"
     compileOnly "org.jsoup:jsoup:${jsoupVersion}"
     testImplementation "org.jsoup:jsoup:${jsoupVersion}"
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testImplementation 'org.mockito:mockito-core:5.11.0'
 }
 
-// Bytecode-relocation task (ShadowJar-as-class, NOT plugin application).
-tasks.register('relocateJsoup',
-        com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
-    archiveBaseName.set('jsoup-relocated')
-    archiveVersion.set(jsoupVersion)
-    destinationDirectory.set(layout.buildDirectory.dir('relocated'))
-    configurations = [project.configurations.jsoupToRelocate]
-    relocate 'org.jsoup', 'com.forgebook.shadow.jsoup'
-}
-
-// ForgeGradle 6's `jarJar` task silently drops `files(...)` entries because they
-// carry no version metadata (jarJar only accepts versioned Maven coords). We bypass
-// jarJar entirely for this relocated dependency and merge the already-relocated
-// classes directly into the main jar below. Since jsoup is relocated to
-// `com.forgebook.shadow.jsoup.*`, there is no classloader collision with other
-// mods, and Forge's classloader picks the classes up from the jar root at runtime.
-
 test {
     useJUnitPlatform()
 }
 
 jar {
-    // Bundle the relocated jsoup classes directly into the main jar.
-    // See the comment above `relocateJsoup` for why we don't use jarJar here.
-    dependsOn tasks.relocateJsoup
-    from(zipTree(tasks.relocateJsoup.archiveFile)) {
+    // Merge jsoup's classes directly into the main jar under `org.jsoup.*`.
+    // No relocation: our source imports `org.jsoup.Jsoup` and compile-time
+    // `compileOnly` already resolves to the same package, so keeping the
+    // runtime package aligned is what lets ModDocsScraper and
+    // DuckDuckGoHtmlAdapter resolve at class-load time.
+    // Deferred closure — resolving `jsoupBundled` eagerly at configuration
+    // time triggers ForgeGradle's bundled-deobf repo before it's finalized
+    // ("Cannot mutate content repository descriptor"). Wrapping in a closure
+    // postpones resolution to execution time.
+    from({ configurations.jsoupBundled.collect { zipTree(it) } }) {
         // Strip everything from jsoup's jar except its classes. The merge
         // would otherwise bring in:
         //   - META-INF/MANIFEST.MF         (overwrites ours)
         //   - META-INF/LICENSE, README.md  (misattributes ForgeBook's license)
-        //   - META-INF/maven/org.jsoup/**  (obsolete POM for the non-relocated coords)
-        //   - META-INF/versions/9/module-info.class (jsoup declares "module org.jsoup"
-        //       but the classes are now under com.forgebook.shadow.jsoup — the module
-        //       descriptor lies, which confuses the JDK ModuleLayer and — critically —
-        //       Minecraft 1.20.1's resource-pack loader, breaking resource packs in
-        //       the modpack the mod is installed into)
+        //   - META-INF/maven/org.jsoup/**  (obsolete POM)
+        //   - META-INF/versions/9/module-info.class (jsoup's JPMS descriptor —
+        //       confuses the JDK ModuleLayer and, critically, Minecraft 1.20.1's
+        //       resource-pack loader, breaking resource packs in the host modpack)
         //   - META-INF/*.SF/DSA/RSA         (jar signatures we can't honor)
-        // jsoup has no classes outside com/** so dropping all META-INF/ is safe.
+        // jsoup has no classes outside org/** so dropping all META-INF/ is safe.
         exclude 'META-INF/**'
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

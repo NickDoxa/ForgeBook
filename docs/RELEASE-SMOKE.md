@@ -60,7 +60,7 @@ jar tf build/libs/forgebook-1.0.0.jar | grep -E "jarjar|com/forgebook/shadow/jso
 
 **Expected in console / `logs/latest.log`:**
 - `Loading mod 'forgebook' (version 1.0.0)` appears.
-- No `NoClassDefFoundError` referencing `com.forgebook.shadow.jsoup.*` classes. (If the jarJar blocker above is unresolved, this WILL fire the first time ModDocsScraper is invoked — i.e. at Step 5.)
+- No `NoClassDefFoundError` referencing `org.jsoup.*` classes. (Verify with `jar tf build/libs/forgebook-*.jar | grep org/jsoup/Jsoup.class` before shipping — if empty, the packaging merge is broken and this WILL fire the first time ModDocsScraper or DuckDuckGoHtmlAdapter is invoked — i.e. at Step 5.)
 - No client-classloader leakage — nothing about `net.minecraft.client.*` being loaded (firewall is holding).
 - Log lines confirming: `ForgebookNetwork` channel `forgebook:main` registered, `ConfigHolder` loaded a snapshot, `SystemPromptBuilder.buildAndCache` completed, `RateLimiterHolder.swap` seeded.
 
