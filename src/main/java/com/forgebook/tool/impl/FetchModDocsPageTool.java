@@ -62,16 +62,13 @@ public final class FetchModDocsPageTool implements Tool {
 
     @Override
     public String description() {
-        return "Fetches a mod's documentation/wiki page and returns the readable text, framed for " +
-               "safety. Use the modURL from list_installed_mods. Returns NO_DOCS_URL if the URL is " +
-               "missing — fall back to web_search.";
+        return "Fetch a mod's docs page. Returns NO_DOCS_URL if missing — fall back to web_search.";
     }
 
     @Override
     public JsonObject schema() {
         JsonObject urlProp = new JsonObject();
         urlProp.addProperty("type", "string");
-        urlProp.addProperty("description", "Documentation URL (typically modURL from list_installed_mods)");
 
         JsonObject properties = new JsonObject();
         properties.add("url", urlProp);

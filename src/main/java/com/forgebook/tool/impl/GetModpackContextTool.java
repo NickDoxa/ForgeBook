@@ -28,8 +28,7 @@ public final class GetModpackContextTool implements Tool {
 
     @Override
     public String description() {
-        return "Returns the configured modpack's name and summary, when CurseForge integration " +
-               "is set up. Otherwise returns a 'not configured' marker.";
+        return "Modpack name + summary (CurseForge). Empty marker if not configured.";
     }
 
     @Override

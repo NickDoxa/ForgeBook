@@ -60,7 +60,7 @@ class SystemPromptBuilderTest {
         String prompt = SystemPromptBuilder.build(List.of(), Optional.empty(), List.of(), emptySnap);
 
         assertTrue(prompt.contains("You are ForgeBook"), "Must contain identity preamble");
-        assertTrue(prompt.contains("Installed mods:"), "Must contain mods section header");
+        assertTrue(prompt.contains("Installed mods ("), "Must contain mods section header (with count)");
         assertTrue(prompt.contains("Available tools:"), "Must contain tools section header");
         assertTrue(prompt.contains("trust=\"untrusted\""), "Must contain anti-injection rule");
         assertFalse(prompt.contains("Modpack:"), "Must NOT contain Modpack section when context empty");
@@ -68,6 +68,8 @@ class SystemPromptBuilderTest {
 
     @Test
     void test7_threeModsAllPresentInOutput() throws Exception {
+        // Post-1.0.4: mod list is modId-only (displayName + URL moved to list_installed_mods
+        // tool call) to reduce per-request input tokens against Anthropic's per-minute org limit.
         List<IModInfo> mods = List.of(
             fakeMod("alpha", "Alpha Mod", "1.0", "https://alpha.example/"),
             fakeMod("beta",  "Beta Mod",  "2.0", "https://beta.example/"),
@@ -76,19 +78,18 @@ class SystemPromptBuilderTest {
         String prompt = SystemPromptBuilder.build(mods, Optional.empty(), List.of(), emptySnap);
 
         assertTrue(prompt.contains("alpha"), "Must contain modId 'alpha'");
-        assertTrue(prompt.contains("Alpha Mod"), "Must contain displayName 'Alpha Mod'");
         assertTrue(prompt.contains("beta"), "Must contain modId 'beta'");
-        assertTrue(prompt.contains("Beta Mod"), "Must contain displayName 'Beta Mod'");
         assertTrue(prompt.contains("gamma"), "Must contain modId 'gamma'");
-        assertTrue(prompt.contains("Gamma Mod"), "Must contain displayName 'Gamma Mod'");
+        assertTrue(prompt.contains("Installed mods (3):"), "Must include mod count header");
     }
 
     @Test
-    void test8_modWithNoUrlRenderedAsNoDocsUrl() throws Exception {
+    void test8_modWithNoUrlStillListedByModId() throws Exception {
+        // Post-1.0.4: URL no longer rendered per mod — agent calls list_installed_mods for URLs.
         List<IModInfo> mods = List.of(fakeMod("nourl", "No Url Mod", "1.0", null));
         String prompt = SystemPromptBuilder.build(mods, Optional.empty(), List.of(), emptySnap);
 
-        assertTrue(prompt.contains("(no docs URL)"), "Must render '(no docs URL)' for mod with empty URL");
+        assertTrue(prompt.contains("nourl"), "Must still list modId even when URL missing");
     }
 
     @Test

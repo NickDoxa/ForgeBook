@@ -260,7 +260,8 @@ public final class RagItemPipeline {
                             uuid, cfSlug.get());
                     }
                 } catch (Exception e) {
-                    LOG.debug("CurseForge API lookup failed for slug {}: {}", cfSlug.get(), e.toString());
+                    LOG.warn("rag fetch_error uuid={} source=cf_api slug={} ex={}: {} — falling through to http",
+                        uuid, cfSlug.get(), e.getClass().getSimpleName(), e.getMessage());
                     // fall through to SafeHttpFetcher
                 }
             }

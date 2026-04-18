@@ -33,8 +33,14 @@ import java.util.function.BiFunction;
 public final class WebSearchTool implements Tool {
 
     private static final Gson GSON = new Gson();
-    private static final int DEFAULT_LIMIT = 5;
-    private static final int MAX_LIMIT = 10;
+    // Lowered default 5→3 and max 10→5: each result is ~400-600 chars of JSON, and
+    // tool_result bodies get replayed in every subsequent turn of the agent loop.
+    // A 3-result default cuts ~1kB off the turn-2 request — non-trivial against
+    // Anthropic's 10k input-tokens-per-minute org limit.
+    private static final int DEFAULT_LIMIT = 3;
+    private static final int MAX_LIMIT = 5;
+    /** Hard cap on tool_result body size to keep subsequent agent turns under the token limit. */
+    static final int RESULT_BODY_CAP = 2_000;
 
     /** Seam for the DDG HTTP fetch (used in tests via withDdgFetch factory). */
     private final DuckDuckGoHtmlAdapter.HttpFetch ddgFetch;
@@ -85,19 +91,17 @@ public final class WebSearchTool implements Tool {
 
     @Override
     public String description() {
-        return "Searches the web for mod information. Returns title/snippet/url triples. " +
-               "Use as a fallback when fetch_mod_docs_page returns NO_DOCS_URL.";
+        return "Web search. Returns title/snippet/url triples.";
     }
 
     @Override
     public JsonObject schema() {
         JsonObject queryProp = new JsonObject();
         queryProp.addProperty("type", "string");
-        queryProp.addProperty("description", "search query");
 
         JsonObject limitProp = new JsonObject();
         limitProp.addProperty("type", "integer");
-        limitProp.addProperty("description", "max results (default 5, max 10)");
+        limitProp.addProperty("description", "default 3, max 5");
 
         JsonObject properties = new JsonObject();
         properties.add("query", queryProp);
@@ -134,7 +138,14 @@ public final class WebSearchTool implements Tool {
         }
 
         List<SearchResult> results = selectAdapter(snap).search(query, limit);
-        return GSON.toJson(results);
+        String body = GSON.toJson(results);
+        // Fix #1c (1.0.4): cap tool_result body size. This body is echoed back in
+        // every subsequent agent-loop turn, so uncapped search output can easily
+        // tip a 2-turn dispatch over Anthropic's 10k input-tokens-per-minute org limit.
+        if (body.length() > RESULT_BODY_CAP) {
+            body = body.substring(0, RESULT_BODY_CAP) + "\"...truncated\"]";
+        }
+        return body;
     }
 
     /** Select and construct the appropriate adapter based on config. */

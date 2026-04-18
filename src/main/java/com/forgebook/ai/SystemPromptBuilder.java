@@ -79,24 +79,23 @@ public final class SystemPromptBuilder {
             Collection<Tool> tools,
             ConfigSnapshot snap) {
 
-        StringBuilder sb = new StringBuilder(8_192);
+        StringBuilder sb = new StringBuilder(4_096);
         sb.append(IDENTITY).append("\n\n");
 
-        // Installed mods section (D-09 — full list, no truncation in builder)
-        sb.append("Installed mods:\n");
+        // Installed mods: modId-only comma list. Cuts ~80 chars/mod vs the old
+        // "- modid — Display Name — URL" format — for a 200-mod pack that's
+        // ~16kB of input tokens reclaimed on every turn, which is the single
+        // biggest driver of Anthropic's per-minute org rate limit. The agent
+        // can still call list_installed_mods to get displayName/version/modURL
+        // when it actually needs that detail for a specific mod.
+        sb.append("Installed mods (").append(mods.size()).append("): ");
+        boolean first = true;
         for (IModInfo mod : mods) {
-            String url = mod.getModURL()
-                .map(java.net.URL::toString)
-                .orElse("(no docs URL)");
-            sb.append("- ")
-              .append(mod.getModId())
-              .append(" — ")
-              .append(mod.getDisplayName())
-              .append(" — ")
-              .append(url)
-              .append('\n');
+            if (!first) sb.append(", ");
+            sb.append(mod.getModId());
+            first = false;
         }
-        sb.append('\n');
+        sb.append("\n\n");
 
         // Modpack section — OMIT entirely when context is absent (CF-02 graceful degradation)
         modpack.ifPresent(ctx -> sb

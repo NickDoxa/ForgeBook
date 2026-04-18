@@ -214,14 +214,15 @@ public final class CurseForgeClient {
                 .build();
             HttpResponse<String> searchResp = http.send(searchReq, BodyHandlers.ofString());
             if (searchResp.statusCode() != 200) {
-                LOG.debug("CurseForge search returned {} for slug {}", searchResp.statusCode(), slug);
+                LOG.warn("cf_api search non_200 status={} slug={}", searchResp.statusCode(), slug);
                 return Optional.empty();
             }
             Optional<Integer> modId = parseSearchForFirstId(searchResp.body());
             if (modId.isEmpty()) {
-                LOG.debug("CurseForge search produced no hits for slug {}", slug);
+                LOG.info("cf_api search no_hits slug={}", slug);
                 return Optional.empty();
             }
+            LOG.info("cf_api search ok slug={} modId={}", slug, modId.get());
 
             // 2. Fetch description HTML for the resolved mod id.
             HttpRequest descReq = HttpRequest.newBuilder()
@@ -233,13 +234,17 @@ public final class CurseForgeClient {
                 .build();
             HttpResponse<String> descResp = http.send(descReq, BodyHandlers.ofString());
             if (descResp.statusCode() != 200) {
-                LOG.debug("CurseForge description returned {} for modId {} (slug {})",
+                LOG.warn("cf_api description non_200 status={} modId={} slug={}",
                     descResp.statusCode(), modId.get(), slug);
                 return Optional.empty();
             }
-            return parseDescription(descResp.body());
+            Optional<String> html = parseDescription(descResp.body());
+            LOG.info("cf_api description ok slug={} modId={} html_chars={}",
+                slug, modId.get(), html.map(String::length).orElse(0));
+            return html;
         } catch (Exception e) {
-            LOG.debug("CurseForge description fetch failed for slug {}: {}", slug, e.toString());
+            LOG.warn("cf_api fetch_exception slug={} ex={}: {}",
+                slug, e.getClass().getSimpleName(), e.getMessage());
             return Optional.empty();
         }
     }

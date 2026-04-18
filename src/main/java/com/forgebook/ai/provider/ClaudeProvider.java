@@ -125,9 +125,23 @@ public final class ClaudeProvider implements AiProvider {
                     if (status >= 500 || status == 429 || status == 529) breaker.recordFailure();
                     return err;
                 }
+                // 1.0.4: on a 429 with a retry-after hint longer than the interactive
+                // budget (>10s), fail fast rather than blocking the worker thread.
+                // Anthropic's per-minute org rate-limit errors typically carry a
+                // full-minute hint — retrying at any cap ≤ maxDelay just burns a
+                // round-trip and returns the same 429. Let the caller surface the
+                // error to the user immediately.
+                if (status == 429 && retryAfter.isPresent()
+                    && retryAfter.get().toMillis() > 10_000L) {
+                    LOG.warn("anthropic 429 fast_fail retry_after_ms={} (exceeds interactive budget)",
+                        retryAfter.get().toMillis());
+                    breaker.recordFailure();
+                    return err;
+                }
                 Duration d = retry.delay(attempt, retryAfter);
-                LOG.info("Anthropic {} attempt {}/{} — backing off {} ms",
-                    status, attempt + 1, retry.maxAttempts() + 1, d.toMillis());
+                LOG.info("anthropic backoff status={} attempt={}/{} delay_ms={} retry_after_hint_ms={}",
+                    status, attempt + 1, retry.maxAttempts() + 1, d.toMillis(),
+                    retryAfter.map(Duration::toMillis).orElse(-1L));
                 if (d.toMillis() > 0) Thread.sleep(d.toMillis());
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();

@@ -14,10 +14,15 @@ public record RetryPolicy(int maxAttempts, Duration baseDelay, Duration maxDelay
     // or it doesn't, there's no systemic benefit to three attempts from a user's
     // perspective. Lowering from 3 → 1 caps worst-case latency of a failing call
     // from ~4 minutes (3 × 60s timeout + backoff) to ~65s (1 × 30s + backoff).
+    // maxDelay raised 5s → 10s (1.0.4) so short retry-after hints (e.g. 7-8s
+    // after a brief 429 burst) are respected verbatim instead of being clamped
+    // down to 5s and immediately retried into another 429. ClaudeProvider
+    // separately fast-fails 429s whose retry-after exceeds 10s — the
+    // interactive budget — so this cap is the true upper bound.
     public static final RetryPolicy DEFAULT = new RetryPolicy(
         /* maxAttempts */ 1,
         /* baseDelay   */ Duration.ofSeconds(1),
-        /* maxDelay    */ Duration.ofSeconds(5),
+        /* maxDelay    */ Duration.ofSeconds(10),
         /* jitter      */ 0.25
     );
 

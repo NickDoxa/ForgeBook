@@ -52,15 +52,13 @@ public final class ListInstalledModsTool implements Tool {
 
     @Override
     public String description() {
-        return "Lists every mod loaded on the server. Use to enumerate modIds, display names, " +
-               "versions, and documentation URLs.";
+        return "Detailed modId/name/version/docsURL for installed mods. Optional modId substring filter.";
     }
 
     @Override
     public JsonObject schema() {
         JsonObject filter = new JsonObject();
         filter.addProperty("type", "string");
-        filter.addProperty("description", "optional substring filter on modId");
 
         JsonObject properties = new JsonObject();
         properties.add("filter", filter);
