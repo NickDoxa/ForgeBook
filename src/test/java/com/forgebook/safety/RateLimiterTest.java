@@ -7,16 +7,17 @@ import org.junit.jupiter.api.Test;
 class RateLimiterTest {
 
     @Test
-    void fiveRequestsPerMinute_allowsFiveThenLimits() {
+    void fiveRequestsPerMinute_allowsOneThenLimits_withBurstCap() {
+        // 1.0.6: burst is capped at 1 regardless of rpm (Anthropic TPM mitigation).
+        // First request is Allowed, second is Limited. Sustained throughput still
+        // ~5/min via refill (1 token every 12s for rpm=5).
         RateLimiter rl = new RateLimiter(5);
         UUID alice = UUID.randomUUID();
-        for (int i = 0; i < 5; i++) {
-            assertInstanceOf(RateLimiter.Allowed.class, rl.tryAcquire(alice),
-                "request " + i + " should be Allowed");
-        }
-        RateLimiter.Outcome sixth = rl.tryAcquire(alice);
-        assertInstanceOf(RateLimiter.Limited.class, sixth);
-        RateLimiter.Limited limited = (RateLimiter.Limited) sixth;
+        assertInstanceOf(RateLimiter.Allowed.class, rl.tryAcquire(alice),
+            "first request should be Allowed");
+        RateLimiter.Outcome second = rl.tryAcquire(alice);
+        assertInstanceOf(RateLimiter.Limited.class, second);
+        RateLimiter.Limited limited = (RateLimiter.Limited) second;
         assertTrue(limited.retryAfterSeconds() >= 1L,
             "retryAfterSeconds must be >= 1; got " + limited.retryAfterSeconds());
     }

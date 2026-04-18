@@ -102,6 +102,29 @@ public final class MarkdownToMinecraft {
     }
 
     /**
+     * Convert markdown AND apply a base Minecraft color code. Used by command
+     * surfaces so AI replies render in a consistent color (e.g. {@code §b} aqua)
+     * instead of default white. Ensures nested resets restore the base color.
+     *
+     * <p>Transformation: the returned string is {@code baseColor + convert(markdown)}
+     * with every mid-span reset ({@code §r}) replaced by {@code §r + baseColor}, and
+     * a trailing {@code §r} appended so the color doesn't leak into subsequent chat
+     * messages.
+     *
+     * @param markdown  input markdown text; null-in → null-out
+     * @param baseColor Minecraft §-color code (e.g. {@code "\u00a7b"}); null or
+     *                  blank coerces to pure {@link #convert(String)}
+     * @return §-coded string with the base color applied, or null if input was null
+     */
+    public static String convertColored(String markdown, String baseColor) {
+        if (markdown == null) return null;
+        String converted = convert(markdown);
+        if (baseColor == null || baseColor.isEmpty()) return converted;
+        String restored = converted.replace(RESET, RESET + baseColor);
+        return baseColor + restored + RESET;
+    }
+
+    /**
      * Wrap group(1) of each match in {@code prefix ... suffix} — shared helper
      * for bold / italic / underline / strike / code.
      */

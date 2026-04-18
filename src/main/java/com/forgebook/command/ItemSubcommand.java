@@ -312,6 +312,13 @@ public final class ItemSubcommand {
             return 0;
         }
 
+        // Immediate feedback so the player knows the request is in flight. Emitted on
+        // the tick thread (we're still pre-submit). The async reply arrives later from
+        // inside RagItemPipeline's feedback sinks.
+        if (src != null) {
+            src.sendSuccess(() -> Component.translatable("forgebook.command.loading"), false);
+        }
+
         // Allowed — dispatch to RagItemPipeline on the AI executor.
         // TODO(v2): RagItemPipeline currently calls src.sendSuccess / src.sendFailure
         // synchronously from inside this executor task — those sends therefore run

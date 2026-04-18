@@ -7,11 +7,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * SAFE-02 per-UUID token bucket. Counts INITIATED requests.
  *
  * Capacity and refill driven from ConfigSnapshot.rateLimitPerMinute:
- *   capacity     = max(1, requestsPerMinute)       // 0 and negative coerced to 1
- *   refillPerSec = capacity / 60.0
+ *   capacity     = 1                               // burst cap, always 1 (see below)
+ *   refillPerSec = max(1, requestsPerMinute) / 60  // sustained throughput
+ *
+ * Burst is capped at 1 regardless of rpm. Reason: a single player bursting the
+ * full rpm (e.g. 30) in one second can blow Anthropic's 10k input-tokens/min
+ * org-level limit — each ForgeBook request spends ~2-3k tokens on the system
+ * prompt + conversation context. Capping burst at 1 forces spacing so sustained
+ * throughput stays on the sustainable refill curve (one token every 60/rpm
+ * seconds). Sustained throughput over a full minute remains rpm.
  *
  * Buckets created lazily via ConcurrentHashMap.computeIfAbsent — first request
- * for a UUID always Allowed (bucket starts at capacity).
+ * for a UUID always Allowed (bucket starts at capacity=1).
  *
  * On /forgebook reload (Plan 06), RateLimiterHolder.swap(new RateLimiter(rpm))
  * replaces the whole instance — simplest correct reload semantics. The benign
@@ -23,13 +30,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class RateLimiter {
 
+    /** Fixed burst cap. See class javadoc. */
+    private static final int BURST_CAPACITY = 1;
+
     private final int capacity;
     private final double refillPerSec;
     private final ConcurrentHashMap<UUID, TokenBucket> buckets = new ConcurrentHashMap<>();
 
     public RateLimiter(int requestsPerMinute) {
-        this.capacity = Math.max(1, requestsPerMinute);
-        this.refillPerSec = this.capacity / 60.0;
+        int rpm = Math.max(1, requestsPerMinute);
+        this.capacity = BURST_CAPACITY;
+        this.refillPerSec = rpm / 60.0;
     }
 
     public Outcome tryAcquire(UUID uuid) {

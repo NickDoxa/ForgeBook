@@ -20,6 +20,7 @@
   "forgebook.error.overloaded.heading": "Server busy",
   "forgebook.error.overloaded.body": "Too many questions in flight. Try again in a moment.",
   "forgebook.error.no_server.body": "ForgeBook isn't installed on this server.",
+  "forgebook.command.loading": "ForgeBook is thinking…",
   "forgebook.command.reload.success": "ForgeBook config + system prompt reloaded.",
   "forgebook.command.disable.success": "ForgeBook disabled. New requests will return DISABLED.",
   "forgebook.command.disable.already": "ForgeBook is already disabled.",

@@ -3,6 +3,7 @@ package com.forgebook.ai;
 import com.forgebook.ai.dto.ClaudeMessage;
 import com.forgebook.ai.dto.ToolDef;
 import com.forgebook.ai.provider.ProviderFactory;
+import com.forgebook.client.ui.MarkdownToMinecraft;
 import com.forgebook.config.ConfigHolder;
 import com.forgebook.config.ConfigSnapshot;
 import com.forgebook.integration.CurseForgeClient;
@@ -437,13 +438,19 @@ public final class RagItemPipeline {
         return Math.max(1, chars / 4);
     }
 
+    /** Aqua — base color for ForgeBook chat replies. Matches {@code AskSubcommand}. */
+    private static final String REPLY_BASE_COLOR = "\u00a7b";
+
     /** Bridges a real {@link CommandSourceStack} to the pure-Java {@link Feedback} seam. */
     private static Feedback feedbackOf(CommandSourceStack src) {
         return new Feedback() {
             // INTENTIONAL — AI reply text is model-generated prose, not a translation key.
             // Component.literal here per i18n audit carve-out (PATTERNS.md §RagItemPipeline).
+            // Strip markdown + apply base color so * and _ don't leak into chat and
+            // replies are visually distinct from default white text.
             @Override public void sendSuccess(String text) {
-                src.sendSuccess(() -> Component.literal(text), false);
+                String rendered = MarkdownToMinecraft.convertColored(text, REPLY_BASE_COLOR);
+                src.sendSuccess(() -> Component.literal(rendered), false);
             }
             // INTENTIONAL — default-path sendFailure(String) remains for callers that still
             // pass prose (none in Phase 5 production; retained for backwards compatibility

@@ -3,6 +3,7 @@ package com.forgebook.command;
 import com.forgebook.ai.AiDispatcher;
 import com.forgebook.ai.DispatchContext;
 import com.forgebook.ai.RequestKind;
+import com.forgebook.client.ui.MarkdownToMinecraft;
 import com.forgebook.config.ConfigHolder;
 import com.forgebook.config.ConfigSnapshot;
 import com.forgebook.network.packet.ChatErrorPacket.ErrorCode;
@@ -157,6 +158,13 @@ public final class AskSubcommand {
             return 0;
         }
 
+        // Immediate feedback so the player knows the request is in flight. Emitted on
+        // the tick thread (we're still pre-submit). The async reply arrives later via
+        // the tickThreadHop below.
+        if (src != null) {
+            src.sendSuccess(() -> Component.translatable("forgebook.command.loading"), false);
+        }
+
         try {
             executorSupplier.get().submit(() -> {
                 try {
@@ -192,11 +200,17 @@ public final class AskSubcommand {
         return Command.SINGLE_SUCCESS;
     }
 
+    /** Aqua — base color for ForgeBook chat replies. Distinguishes mod output from vanilla system text. */
+    private static final String REPLY_BASE_COLOR = "\u00a7b";
+
     private static void sendSuccess(CommandSourceStack src, String text) {
+        // Strip markdown + apply base color so * and _ don't leak into chat as raw
+        // characters and replies are visually distinct from default white text.
+        String rendered = MarkdownToMinecraft.convertColored(text, REPLY_BASE_COLOR);
         if (src != null) {
             // INTENTIONAL — AI reply text is model-generated prose, not a translation key.
             // Component.literal here per i18n audit carve-out.
-            src.sendSuccess(() -> Component.literal(text), false);
+            src.sendSuccess(() -> Component.literal(rendered), false);
         }
         successSinkForTests.accept(text);
     }
